@@ -171,7 +171,8 @@ class Tapper:
         if change <= 0:
             change = 0
         self.balance = cur_balance
-        logger.success(f"{self.session_name} | <green> 🖌 Painted <cyan>{yx}</cyan> with color: <cyan>{color}</cyan> | got <red>+{change:.1f}</red> px 🔳</green>")
+        logger.success(
+        f"{self.session_name} | <green> 🖌 Painted <cyan>{yx}</cyan> with color: <cyan>{color}</cyan> | got <red>+{change:.1f}</red> px 🔳 - Balance: <cyan>{self.balance}</cyan> px 🔳</green>")
         await asyncio.sleep(delay=randint(delay_start, delay_end))
 
     async def paint(self, http_client: aiohttp.ClientSession, retries=20):
