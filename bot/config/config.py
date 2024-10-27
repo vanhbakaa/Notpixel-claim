@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     PAINT_REWARD_MAX_LEVEL: int = 7
     RECHARGE_SPEED_MAX_LEVEL: int = 11
 
+    ENABLE_SSL: bool = True
+
     USE_PROXIES_FROM_FILE: bool = False
 
 
