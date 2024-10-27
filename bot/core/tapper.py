@@ -157,7 +157,8 @@ class Tapper:
             custom_headers['x-auth-token'] = "Bearer null"
             qwe = f'{{"webAppData": "{tg_web_data}"}}'
             r = json.loads(qwe)
-            login_req = await http_client.post("https://api.notcoin.tg/auth/login", json=r, headers=custom_headers)
+            login_req = await http_client.post("https://api.notcoin.tg/auth/login", json=r, headers=custom_headers,
+                                               ssl=settings.ENABLE_SSL)
 
             login_req.raise_for_status()
 
@@ -177,7 +178,8 @@ class Tapper:
         try:
             logger.info(f"{self.session_name} | Joining squad..")
             join_req = await http_client.post("https://api.notcoin.tg/squads/absolateA/join",
-                                              json=json.loads('{"chatId": -1002312810276}'), headers=custom_headers)
+                                              json=json.loads('{"chatId": -1002312810276}'), headers=custom_headers,
+                                              ssl=settings.ENABLE_SSL)
 
             join_req.raise_for_status()
             logger.success(f"{self.session_name} | 🟩 <green>Joined squad</green>")
@@ -188,7 +190,8 @@ class Tapper:
     async def login(self, http_client: aiohttp.ClientSession):
         try:
 
-            response = await http_client.get("https://notpx.app/api/v1/users/me")
+            response = await http_client.get("https://notpx.app/api/v1/users/me",
+                                             ssl=settings.ENABLE_SSL)
             response.raise_for_status()
             response_json = await response.json()
             return response_json
@@ -201,7 +204,8 @@ class Tapper:
 
     async def get_user_info(self, http_client: aiohttp.ClientSession):
         try:
-            user = await http_client.get('https://notpx.app/api/v1/users/me')
+            user = await http_client.get('https://notpx.app/api/v1/users/me',
+                                         ssl=settings.ENABLE_SSL)
             user.raise_for_status()
             user_json = await user.json()
             return user_json
@@ -211,7 +215,8 @@ class Tapper:
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, service_name, proxy: Proxy) -> None:
         try:
-            response = await http_client.get(url='https://ipinfo.io/json', timeout=aiohttp.ClientTimeout(20))
+            response = await http_client.get(url='https://ipinfo.io/json', timeout=aiohttp.ClientTimeout(20),
+                                             ssl=settings.ENABLE_SSL)
             response.raise_for_status()
 
             response_json = await response.json()
@@ -246,7 +251,8 @@ class Tapper:
 
     async def get_balance(self, http_client: aiohttp.ClientSession):
         try:
-            balance_req = await http_client.get('https://notpx.app/api/v1/mining/status')
+            balance_req = await http_client.get('https://notpx.app/api/v1/mining/status',
+                                                ssl=settings.ENABLE_SSL)
             balance_req.raise_for_status()
             balance_json = await balance_req.json()
             return balance_json['userBalance']
@@ -256,7 +262,8 @@ class Tapper:
 
     async def get_status(self, http_client: aiohttp.ClientSession):
         try:
-            balance_req = await http_client.get('https://notpx.app/api/v1/mining/status')
+            balance_req = await http_client.get('https://notpx.app/api/v1/mining/status',
+                                                ssl=settings.ENABLE_SSL)
             balance_req.raise_for_status()
             balance_json = await balance_req.json()
             return balance_json
@@ -266,7 +273,8 @@ class Tapper:
 
     async def tasks(self, http_client: aiohttp.ClientSession):
         try:
-            stats = await http_client.get('https://notpx.app/api/v1/mining/status')
+            stats = await http_client.get('https://notpx.app/api/v1/mining/status',
+                                          ssl=settings.ENABLE_SSL)
             stats.raise_for_status()
             stats_json = await stats.json()
             done_task_list = stats_json['tasks'].keys()
@@ -279,7 +287,8 @@ class Tapper:
                 else:
                     for new_league in possible_upgrades:
                         if new_league not in done_task_list:
-                            tasks_status = await http_client.get(f'https://notpx.app/api/v1/mining/task/check/{new_league}')
+                            tasks_status = await http_client.get(f'https://notpx.app/api/v1/mining/task/check/{new_league}',
+                                                                 ssl=settings.ENABLE_SSL)
                             tasks_status.raise_for_status()
                             tasks_status_json = await tasks_status.json()
                             status = tasks_status_json[new_league]
@@ -306,7 +315,8 @@ class Tapper:
                                 continue
                             await self.join_tg_channel(name)
                             await asyncio.sleep(delay=3)
-                    tasks_status = await http_client.get(f'https://notpx.app/api/v1/mining/task/check/{task}')
+                    tasks_status = await http_client.get(f'https://notpx.app/api/v1/mining/task/check/{task}',
+                                                         ssl=settings.ENABLE_SSL)
                     tasks_status.raise_for_status()
                     tasks_status_json = await tasks_status.json()
                     status = (lambda r: all(r.values()))(tasks_status_json)
@@ -325,7 +335,8 @@ class Tapper:
 
     async def make_paint_request(self, http_client: aiohttp.ClientSession, yx, color, delay_start, delay_end):
         paint_request = await http_client.post('https://notpx.app/api/v1/repaint/start',
-                                                json={"pixelId": int(yx), "newColor": color})
+                                                json={"pixelId": int(yx), "newColor": color},
+                                               ssl=settings.ENABLE_SSL)
         paint_request.raise_for_status()
         paint_request_json = await paint_request.json()
         cur_balance = paint_request_json.get("balance", self.balance)
@@ -338,7 +349,8 @@ class Tapper:
 
     async def paint(self, http_client: aiohttp.ClientSession, retries=20):
         try:
-            stats = await http_client.get('https://notpx.app/api/v1/mining/status')
+            stats = await http_client.get('https://notpx.app/api/v1/mining/status',
+                                          ssl=settings.ENABLE_SSL)
             stats.raise_for_status()
             stats_json = await stats.json()
             charges = stats_json.get('charges', 24)
@@ -364,7 +376,8 @@ class Tapper:
 
     async def upgrade(self, http_client: aiohttp.ClientSession):
         try:
-            status_req = await http_client.get('https://notpx.app/api/v1/mining/status')
+            status_req = await http_client.get('https://notpx.app/api/v1/mining/status',
+                                               ssl=settings.ENABLE_SSL)
             status_req.raise_for_status()
             status = await status_req.json()
             boosts = status['boosts']
@@ -377,7 +390,8 @@ class Tapper:
             for name, level in sorted(boosts.items(), key=lambda item: item[1]):
                 while name not in settings.IGNORED_BOOSTS and level < boosts_max_levels[name]:
                     try:
-                        upgrade_req = await http_client.get(f'https://notpx.app/api/v1/mining/boost/check/{name}')
+                        upgrade_req = await http_client.get(f'https://notpx.app/api/v1/mining/boost/check/{name},'
+                                                            f'ssl=settings.ENABLE_SSL')
                         upgrade_req.raise_for_status()
                         logger.success(f"{self.session_name} | <green>🟩 Upgraded boost: <cyan>{name}<cyan></green>")
                         level += 1
@@ -393,13 +407,15 @@ class Tapper:
     async def claim(self, http_client: aiohttp.ClientSession):
         try:
             logger.info(f"{self.session_name} | 🟨 Claiming mine reward...")
-            response = await http_client.get(f'https://notpx.app/api/v1/mining/status')
+            response = await http_client.get(f'https://notpx.app/api/v1/mining/status',
+                                             ssl=settings.ENABLE_SSL)
             response.raise_for_status()
             response_json = await response.json()
             await asyncio.sleep(delay=5)
             for _ in range(2):
                 try:
-                    response = await http_client.get(f'https://notpx.app/api/v1/mining/claim')
+                    response = await http_client.get(f'https://notpx.app/api/v1/mining/claim',
+                                                     ssl=settings.ENABLE_SSL)
                     response.raise_for_status()
                     response_json = await response.json()
                 except Exception as error:
@@ -416,11 +432,13 @@ class Tapper:
     async def in_squad(self, http_client: aiohttp.ClientSession):
         try:
             logger.info(f"{self.session_name} | 🟨 Checking if you're in squad")
-            stats_req = await http_client.get(f'https://notpx.app/api/v1/mining/status')
+            stats_req = await http_client.get(f'https://notpx.app/api/v1/mining/status',
+                                              ssl=settings.ENABLE_SSL)
             stats_req.raise_for_status()
             stats_json = await stats_req.json()
             league = stats_json["league"]
-            squads_req = await http_client.get(f'https://notpx.app/api/v1/ratings/squads?league={league}')
+            squads_req = await http_client.get(f'https://notpx.app/api/v1/ratings/squads?league={league}',
+                                               ssl=settings.ENABLE_SSL)
             squads_req.raise_for_status()
             squads_json = await squads_req.json()
             squad_id = squads_json.get("mySquad", {"id": None}).get("id", None)
@@ -432,7 +450,8 @@ class Tapper:
 
     async def notpx_template(self, http_client: aiohttp.ClientSession):
         try:
-            stats_req = await http_client.get(f'https://notpx.app/api/v1/image/template/my')
+            stats_req = await http_client.get(f'https://notpx.app/api/v1/image/template/my',
+                                              ssl=settings.ENABLE_SSL)
             stats_req.raise_for_status()
             cur_template = await stats_req.json()
             cur_template = cur_template["id"]
@@ -442,7 +461,8 @@ class Tapper:
 
     async def j_template(self, http_client: aiohttp.ClientSession, template_id):
         try:
-            resp = await http_client.put(f"https://notpx.app/api/v1/image/template/subscribe/{template_id}")
+            resp = await http_client.put(f"https://notpx.app/api/v1/image/template/subscribe/{template_id}",
+                                         ssl=settings.ENABLE_SSL)
             resp.raise_for_status()
             await asyncio.sleep(randint(1, 3))
             return resp.status == 204
