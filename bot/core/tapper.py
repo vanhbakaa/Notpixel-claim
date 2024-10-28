@@ -390,8 +390,8 @@ class Tapper:
             for name, level in sorted(boosts.items(), key=lambda item: item[1]):
                 while name not in settings.IGNORED_BOOSTS and level < boosts_max_levels[name]:
                     try:
-                        upgrade_req = await http_client.get(f'https://notpx.app/api/v1/mining/boost/check/{name},'
-                                                            f'ssl=settings.ENABLE_SSL')
+                        upgrade_req = await http_client.get(f'https://notpx.app/api/v1/mining/boost/check/{name}',
+                                                            ssl=settings.ENABLE_SSL)
                         upgrade_req.raise_for_status()
                         logger.success(f"{self.session_name} | <green>🟩 Upgraded boost: <cyan>{name}<cyan></green>")
                         level += 1
