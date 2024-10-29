@@ -397,7 +397,7 @@ class Tapper:
                         level += 1
                         await asyncio.sleep(delay=randint(2, 5))
                     except Exception as error:
-                        traceback.print_exc()
+                        # traceback.print_exc()
                         logger.warning(f"{self.session_name} | 🟨 Not enough money to keep upgrading.")
                         await asyncio.sleep(delay=randint(5, 10))
                         return
