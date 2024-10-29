@@ -393,7 +393,7 @@ class Tapper:
                         upgrade_req = await http_client.get(f'https://notpx.app/api/v1/mining/boost/check/{name}',
                                                             ssl=settings.ENABLE_SSL)
                         upgrade_req.raise_for_status()
-                        logger.success(f"{self.session_name} | <green>🟩 Upgraded boost: <cyan>{name}<cyan></green>")
+                        logger.success(f"{self.session_name} | <green>🟩 Upgraded boost: <cyan>{name}</cyan></green>")
                         level += 1
                         await asyncio.sleep(delay=randint(2, 5))
                     except Exception as error:
