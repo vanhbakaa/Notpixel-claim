@@ -42,7 +42,7 @@ class Tapper:
         self.key = key
         self.inSquad = False
 
-    async def get_tg_web_data(self, proxy: str | None, ref:str, bot_peer:str, short_name:str) -> str:
+    async def get_tg_web_data(self, proxy: str | None, ref: str, bot_peer: str, short_name: str) -> str:
         if proxy:
             proxy = Proxy.from_str(proxy)
             proxy_dict = dict(
@@ -138,7 +138,8 @@ class Tapper:
 
         except Exception as error:
             if "[420 FLOOD_WAIT_X]" in str(error):
-                logger.warning(f"{self.session_name} | Get data failed, Retrying... (This is normal don't ask me about it -_-)")
+                logger.warning(
+                    f"{self.session_name} | Get data failed, Retrying... (This is normal don't ask me about it -_-)")
                 await asyncio.sleep(delay=3)
             else:
                 logger.error(f"{self.session_name} | 🟥 Unknown error during Authorization: {error}")
@@ -176,7 +177,6 @@ class Tapper:
         custom_headers["Content-Length"] = "26"
         custom_headers["x-auth-token"] = f"Bearer {bearer_token}"
 
-
         try:
             logger.info(f"{self.session_name} | Joining squad..")
             join_req = await http_client.post("https://api.notcoin.tg/squads/absolateA/join",
@@ -187,7 +187,6 @@ class Tapper:
             logger.success(f"{self.session_name} | 🟩 <green>Joined squad</green>")
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Unknown error when joining squad: {error}")
-
 
     async def login(self, http_client: aiohttp.ClientSession):
         try:
@@ -228,6 +227,33 @@ class Tapper:
             logger.info(f"{self.session_name} |🟩 Logging in with proxy IP {ip} and country {country}")
         except Exception as error:
             logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
+
+    async def add_icon(self):
+        if not self.tg_client.is_connected:
+            try:
+                await self.tg_client.connect()
+            except Exception as error:
+                logger.error(f"{self.session_name} | 🟥 Error while TG connecting: {error}")
+
+        me = await self.tg_client.get_me()
+        name = randint(1, 2)
+        if name == 1:
+            if me.first_name is not None:
+                new_display_name = f"{me.first_name} ▪️"
+            else:
+                new_display_name = "▪️"
+            await self.tg_client.update_profile(first_name=new_display_name)
+        else:
+            if me.last_name is not None:
+                new_display_name = f"{me.last_name} ▪️"
+            else:
+                new_display_name = "▪️"
+            await self.tg_client.update_profile(last_name=new_display_name)
+        logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
+
+        if self.tg_client.is_connected:
+            await self.tg_client.disconnect()
+
 
     async def join_tg_channel(self, link: str):
         if not self.tg_client.is_connected:
@@ -281,20 +307,25 @@ class Tapper:
             done_task_list = list(stats_json['tasks'].keys())
             # logger.debug(done_task_list)
             if randint(0, 5) == 3:
-                league_statuses = {"bronze": [], "silver": ["leagueBonusSilver"], "gold": ["leagueBonusSilver", "leagueBonusGold"], "platinum": ["leagueBonusSilver", "leagueBonusGold", "leagueBonusPlatinum"]}
+                league_statuses = {"bronze": [], "silver": ["leagueBonusSilver"],
+                                   "gold": ["leagueBonusSilver", "leagueBonusGold"],
+                                   "platinum": ["leagueBonusSilver", "leagueBonusGold", "leagueBonusPlatinum"]}
                 possible_upgrades = league_statuses.get(stats_json["league"], "Unknown")
                 if possible_upgrades == "Unknown":
-                    logger.warning(f"{self.session_name} | 🟨 <yellow>Unknown league: {stats_json['league']}, contact support with this issue. Provide this log to make league known. </yellow>")
+                    logger.warning(
+                        f"{self.session_name} | 🟨 <yellow>Unknown league: {stats_json['league']}, contact support with this issue. Provide this log to make league known. </yellow>")
                 else:
                     for new_league in possible_upgrades:
                         if new_league not in done_task_list:
-                            tasks_status = await http_client.get(f'https://notpx.app/api/v1/mining/task/check/{new_league}',
-                                                                 ssl=settings.ENABLE_SSL)
+                            tasks_status = await http_client.get(
+                                f'https://notpx.app/api/v1/mining/task/check/{new_league}',
+                                ssl=settings.ENABLE_SSL)
                             tasks_status.raise_for_status()
                             tasks_status_json = await tasks_status.json()
                             status = tasks_status_json[new_league]
                             if status:
-                                logger.success(f"{self.session_name} | 🟩 <green>League requirement met. Upgraded to <yellow>{new_league} 🏆</yellow>.</green>")
+                                logger.success(
+                                    f"{self.session_name} | 🟩 <green>League requirement met. Upgraded to <yellow>{new_league} 🏆</yellow>.</green>")
                                 current_balance = await self.get_balance(http_client)
                                 logger.info(f"{self.session_name} | Current balance: <cyan>{current_balance}</cyan> px")
                             else:
@@ -305,7 +336,9 @@ class Tapper:
             for task in settings.TASKS_TO_DO:
                 # logger.debug(f"doing task: {task}")
                 if task not in done_task_list:
-
+                    if task == "pixelInNickname":
+                        await self.add_icon()
+                        await asyncio.sleep(randint(3, 5))
                     if task == 'paint20pixels':
                         repaints_total = stats_json['repaintsTotal']
                         if repaints_total < 20:
@@ -324,11 +357,13 @@ class Tapper:
                     tasks_status_json = await tasks_status.json()
                     status = (lambda r: all(r.values()))(tasks_status_json)
                     if status:
-                        logger.success(f"{self.session_name} | 🟩 <green>Task requirements met. Task <cyan>{task}</cyan> completed</green>")
+                        logger.success(
+                            f"{self.session_name} | 🟩 <green>Task requirements met. Task <cyan>{task}</cyan> completed</green>")
                         current_balance = await self.get_balance(http_client)
                         logger.info(f"{self.session_name} | Current balance: <cyan>{current_balance} </cyan>px")
                     else:
-                        logger.warning(f"{self.session_name} | 🟨 Task requirements were not met <yellow>{task}</yellow>")
+                        logger.warning(
+                            f"{self.session_name} | 🟨 Task requirements were not met <yellow>{task}</yellow>")
                     if randint(0, 1) == 1:
                         break
                     await asyncio.sleep(delay=randint(10, 20))
@@ -336,7 +371,8 @@ class Tapper:
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Unknown error when processing tasks: {error}")
 
-    async def make_paint_request(self, http_client: aiohttp.ClientSession, yx, color, use_bombs, delay_start, delay_end):
+    async def make_paint_request(self, http_client: aiohttp.ClientSession, yx, color, use_bombs, delay_start,
+                                 delay_end):
         if use_bombs:
             paint_request = await http_client.post('https://notpx.app/api/v1/repaint/special',
                                                    json={"pixelId": int(yx), "type": 7},
@@ -352,7 +388,7 @@ class Tapper:
             await asyncio.sleep(delay=randint(delay_start, delay_end))
         else:
             paint_request = await http_client.post('https://notpx.app/api/v1/repaint/start',
-                                                    json={"pixelId": int(yx), "newColor": color},
+                                                   json={"pixelId": int(yx), "newColor": color},
                                                    ssl=settings.ENABLE_SSL)
             paint_request.raise_for_status()
             paint_request_json = await paint_request.json()
@@ -361,7 +397,8 @@ class Tapper:
             if change <= 0:
                 change = 0
             self.balance = cur_balance
-            logger.success(f"{self.session_name} | <green> 🖌 Painted <cyan>{yx}</cyan> with color: <cyan>{color}</cyan> | got <red>+{change:.1f}</red> px 🔳 - Balance: <cyan>{self.balance}</cyan> px 🔳</green>")
+            logger.success(
+                f"{self.session_name} | <green> 🖌 Painted <cyan>{yx}</cyan> with color: <cyan>{color}</cyan> | got <red>+{change:.1f}</red> px 🔳 - Balance: <cyan>{self.balance}</cyan> px 🔳</green>")
             await asyncio.sleep(delay=randint(delay_start, delay_end))
 
     async def paint(self, http_client: aiohttp.ClientSession, retries=20):
@@ -389,7 +426,6 @@ class Tapper:
                 use_bombs = False
                 logger.info(f"{self.session_name} | Total charges: <yellow>{charges}/{maxCharges} ⚡️</yellow>")
 
-
             for _ in range(charges - 1):
                 try:
                     q = await get_cords_and_color(user_id=self.user_id, template=self.template_to_join)
@@ -406,7 +442,7 @@ class Tapper:
             await asyncio.sleep(delay=10)
             if retries > 0:
                 logger.warning(f"{self.session_name} | 🟨 Unknown error occurred retrying to paint...")
-                await self.paint(http_client=http_client, retries=retries-1)
+                await self.paint(http_client=http_client, retries=retries - 1)
 
     async def upgrade(self, http_client: aiohttp.ClientSession):
         try:
@@ -455,7 +491,7 @@ class Tapper:
                     response_json = await response.json()
                 except Exception as error:
                     logger.info(f"{self.session_name} | 🟥 First claiming not always successful, retrying..")
-                    await asyncio.sleep(delay=randint(20,30))
+                    await asyncio.sleep(delay=randint(20, 30))
                 else:
                     break
 
@@ -530,7 +566,6 @@ class Tapper:
                 logger.info(f"{self.session_name} | Starting in <yellow>{delay}</yellow> seconds")
                 await asyncio.sleep(delay=delay)
 
-
             token_live_time = randint(600, 800)
             while True:
                 try:
@@ -543,15 +578,17 @@ class Tapper:
                         next_checking_time = randint(settings.NIGHT_CHECKING[0], settings.NIGHT_CHECKING[1])
 
                         if start_time <= current_utc_time <= end_time:
-                            logger.info(f"{self.session_name} | Current UTC time is <yellow>{current_utc_time.replace(microsecond=0)}</yellow>, so bot is sleeping, next checking in <yellow>{round(next_checking_time / 3600, 1)}</yellow> hours")
+                            logger.info(
+                                f"{self.session_name} | Current UTC time is <yellow>{current_utc_time.replace(microsecond=0)}</yellow>, so bot is sleeping, next checking in <yellow>{round(next_checking_time / 3600, 1)}</yellow> hours")
                             await asyncio.sleep(next_checking_time)
                             continue
 
                     if time() - access_token_created_time >= token_live_time:
-                        tg_web_data = await self.get_tg_web_data(proxy=proxy, bot_peer=self.main_bot_peer, ref=ref, short_name="app")
+                        tg_web_data = await self.get_tg_web_data(proxy=proxy, bot_peer=self.main_bot_peer, ref=ref,
+                                                                 short_name="app")
                         if tg_web_data is None:
                             continue
-                            
+
                         await break_down(self.user_id)
 
                         http_client.headers["Authorization"] = f"initData {tg_web_data}"
@@ -561,7 +598,6 @@ class Tapper:
                         access_token_created_time = time()
                         token_live_time = randint(600, 800)
 
-
                     await asyncio.sleep(delay=randint(1, 3))
 
                     user = await self.get_user_info(http_client)
@@ -569,7 +605,8 @@ class Tapper:
                     status = await self.get_status(http_client)
                     maxtime = status['maxMiningTime']
                     fromstart = status['fromStart']
-                    logger.info(f"{self.session_name} | Balance: <cyan>{balance} px 🔲</cyan> | Total repaints: <red>{user['repaints']} 🎨</red> | User league: <yellow>{status['league']} 🏆</yellow>")
+                    logger.info(
+                        f"{self.session_name} | Balance: <cyan>{balance} px 🔲</cyan> | Total repaints: <red>{user['repaints']} 🎨</red> | User league: <yellow>{status['league']} 🏆</yellow>")
                     await inform(self.user_id, balance, key=self.key)
 
                     if await self.join_template(http_client=http_client):
@@ -580,12 +617,14 @@ class Tapper:
                             if not retry:
                                 self.joined = False
                                 delay = randint(60, 120)
-                                logger.info(f"{self.session_name} | 🖼 Joining to template restart in <yellow>{delay}</yellow> seconds.")
+                                logger.info(
+                                    f"{self.session_name} | 🖼 Joining to template restart in <yellow>{delay}</yellow> seconds.")
                                 await asyncio.sleep(delay=delay)
                                 token_live_time = 0
                                 continue
                             else:
-                                logger.success(f"{self.session_name} | <green>Successfully join template: <cyan>{self.template_to_join} 🖼</cyan></green>")
+                                logger.success(
+                                    f"{self.session_name} | <green>Successfully join template: <cyan>{self.template_to_join} 🖼</cyan></green>")
 
                     if settings.AUTO_DRAW:
                         await self.paint(http_client=http_client)
@@ -594,7 +633,8 @@ class Tapper:
                         r = uniform(2, 4)
                         if float(fromstart) >= maxtime / r:
                             reward_status = await self.claim(http_client=http_client)
-                            logger.success(f"{self.session_name} | <green>Claimed: <cyan>{reward_status} px 🔳</cyan></green>")
+                            logger.success(
+                                f"{self.session_name} | <green>Claimed: <cyan>{reward_status} px 🔳</cyan></green>")
 
                     if True:
                         if not await self.in_squad(http_client=http_client):
@@ -614,7 +654,8 @@ class Tapper:
 
                     if self.multi_thread:
                         sleep_time = randint(settings.SLEEP_TIME[0], settings.SLEEP_TIME[1])
-                        logger.info(f"{self.session_name} | 🟨 Sleep <yellow>{round(sleep_time / 60, 1)}</yellow> minutes")
+                        logger.info(
+                            f"{self.session_name} | 🟨 Sleep <yellow>{round(sleep_time / 60, 1)}</yellow> minutes")
                         await asyncio.sleep(delay=sleep_time)
                     else:
                         await http_client.close()
@@ -632,9 +673,10 @@ class Tapper:
                     await asyncio.sleep(delay=randint(60, 120))
 
 
-async def run_tapper(tg_client: Client, user_agent: str, proxy: str | None, first_run: bool, multithread: bool, key: str):
+async def run_tapper(tg_client: Client, user_agent: str, proxy: str | None, first_run: bool, multithread: bool,
+                     key: str):
     try:
-        await Tapper(tg_client=tg_client, first_run=first_run, multithread=multithread, key=key).run(user_agent=user_agent, proxy=proxy)
+        await Tapper(tg_client=tg_client, first_run=first_run, multithread=multithread, key=key).run(
+            user_agent=user_agent, proxy=proxy)
     except InvalidSession:
         logger.error(f"{tg_client.name} | Invalid Session")
-
