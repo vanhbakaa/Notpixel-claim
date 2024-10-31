@@ -46,8 +46,8 @@ async def reacheble(times_to_fall=20):
                     logger.success(f"🟩 Connected to server your UUID: <cyan>{data.get('uuid', None)}</cyan>.")
                 response.raise_for_status()
     except Exception as e:
-        logger.warning(f"🟨 Server unreachable, retrying in 60-120 seconds, attempt {20 - times_to_fall + 1}/20")
-        await asyncio.sleep(random.randint(60, 120))
+        logger.warning(f"🟨 Server unreachable, retrying in 60 seconds, attempt {20 - times_to_fall + 1}/20")
+        await asyncio.sleep(random.randint(60, 61))
         if times_to_fall > 1:
             return await reacheble(times_to_fall - 1)
         else:
@@ -78,8 +78,8 @@ async def inform(user_id, balance, key, times_to_fall=20):
 
                 response.raise_for_status()
     except Exception:
-        logger.warning(f"🟨 Server unreachable, retrying in 60-120 seconds, attempt {20 - times_to_fall + 1}/20")
-        await asyncio.sleep(random.randint(60, 120))
+        logger.warning(f"🟨 Server unreachable, retrying in 60 seconds, attempt {20 - times_to_fall + 1}/20")
+        await asyncio.sleep(random.randint(60, 61))
         if times_to_fall > 1:
             return await inform(user_id, balance, key, times_to_fall - 1)
         else:
@@ -102,8 +102,8 @@ async def get_cords_and_color(user_id, template, times_to_fall=20):
                     return a
                 response.raise_for_status()
     except Exception as e:
-        logger.warning(f"🟨 Server unreachable, retrying in 60-120 seconds, attempt {20 - times_to_fall + 1}/20")
-        await asyncio.sleep(random.randint(60, 120))
+        logger.warning(f"🟨 Server unreachable, retrying in 60 seconds, attempt {20 - times_to_fall + 1}/20")
+        await asyncio.sleep(random.randint(60))
         if times_to_fall > 1:
             return await get_cords_and_color(user_id, template, times_to_fall - 1)
         else:
@@ -123,8 +123,8 @@ async def template_to_join(cur_template=0, times_to_fall=20):
                     return resp['template']
                 response.raise_for_status()
     except Exception as e:
-        logger.warning(f"🟨 Server unreachable, retrying in 60-120 seconds, attempt {20 - times_to_fall + 1}/20")
-        await asyncio.sleep(random.randint(60, 120))
+        logger.warning(f"🟨 Server unreachable, retrying in 60 seconds, attempt {20 - times_to_fall + 1}/20")
+        await asyncio.sleep(random.randint(60, 61))
         if times_to_fall > 1:
             return await template_to_join(cur_template, times_to_fall - 1)
         else:
@@ -145,8 +145,8 @@ async def boost_record(user_id=0, boosts=None, max_level=None, times_to_fall=20)
             }, ssl=False) as response:
                 response.raise_for_status()
     except Exception:
-        logger.warning(f"🟨 Server unreachable, retrying in 60-120 seconds, attempt {20 - times_to_fall + 1}/20")
-        await asyncio.sleep(random.randint(60, 120))
+        logger.warning(f"🟨 Server unreachable, retrying in 60 seconds, attempt {20 - times_to_fall + 1}/20")
+        await asyncio.sleep(random.randint(60, 61))
         if times_to_fall > 1:
             await boost_record(user_id=user_id, boosts=boosts, max_level=max_level, times_to_fall=times_to_fall - 1)
         else:
