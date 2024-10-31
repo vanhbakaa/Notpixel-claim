@@ -204,7 +204,7 @@ class Tapper:
                 if "7" in pumkin_bombs.keys():
                     total_bombs = pumkin_bombs["7"]
                     use_bombs = True
-                    charges = total_bombs
+                    charges = total_bombs + 1
                     logger.info(f"{self.session_name} | Total bomb: <yellow>{total_bombs}</yellow>")
                 else:
                     use_bombs = False
