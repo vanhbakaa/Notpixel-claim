@@ -40,6 +40,7 @@ class Tapper:
         self.user_id = 0
         self.multi_thread = multithread
         self.key = key
+        self.inSquad = False
 
     async def get_tg_web_data(self, proxy: str | None, ref:str, bot_peer:str, short_name:str) -> str:
         if proxy:
@@ -96,6 +97,7 @@ class Tapper:
                 ))
 
             auth_url = web_view.url
+            # print(auth_url)
 
             tg_web_data = unquote(
                 string=unquote(string=auth_url.split('tgWebAppData=')[1].split('&tgWebAppVersion')[0]))
@@ -227,7 +229,6 @@ class Tapper:
         except Exception as error:
             logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
 
-
     async def join_tg_channel(self, link: str):
         if not self.tg_client.is_connected:
             try:
@@ -277,8 +278,8 @@ class Tapper:
                                           ssl=settings.ENABLE_SSL)
             stats.raise_for_status()
             stats_json = await stats.json()
-            done_task_list = stats_json['tasks'].keys()
-            #logger.debug(done_task_list)
+            done_task_list = list(stats_json['tasks'].keys())
+            # logger.debug(done_task_list)
             if randint(0, 5) == 3:
                 league_statuses = {"bronze": [], "silver": ["leagueBonusSilver"], "gold": ["leagueBonusSilver", "leagueBonusGold"], "platinum": ["leagueBonusSilver", "leagueBonusGold", "leagueBonusPlatinum"]}
                 possible_upgrades = league_statuses.get(stats_json["league"], "Unknown")
@@ -302,7 +303,9 @@ class Tapper:
                             break
 
             for task in settings.TASKS_TO_DO:
+                # logger.debug(f"doing task: {task}")
                 if task not in done_task_list:
+
                     if task == 'paint20pixels':
                         repaints_total = stats_json['repaintsTotal']
                         if repaints_total < 20:
@@ -333,19 +336,33 @@ class Tapper:
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Unknown error when processing tasks: {error}")
 
-    async def make_paint_request(self, http_client: aiohttp.ClientSession, yx, color, delay_start, delay_end):
-        paint_request = await http_client.post('https://notpx.app/api/v1/repaint/start',
-                                                json={"pixelId": int(yx), "newColor": color},
-                                               ssl=settings.ENABLE_SSL)
-        paint_request.raise_for_status()
-        paint_request_json = await paint_request.json()
-        cur_balance = paint_request_json.get("balance", self.balance)
-        change = cur_balance - self.balance
-        if change <= 0:
-            change = 0
-        self.balance = cur_balance
-        logger.success(f"{self.session_name} | <green> 🖌 Painted <cyan>{yx}</cyan> with color: <cyan>{color}</cyan> | got <red>+{change:.1f}</red> px 🔳 - Balance: <cyan>{self.balance}</cyan> px 🔳</green>")
-        await asyncio.sleep(delay=randint(delay_start, delay_end))
+    async def make_paint_request(self, http_client: aiohttp.ClientSession, yx, color, use_bombs, delay_start, delay_end):
+        if use_bombs:
+            paint_request = await http_client.post('https://notpx.app/api/v1/repaint/special',
+                                                   json={"pixelId": int(yx), "type": 7},
+                                                   ssl=settings.ENABLE_SSL)
+            paint_request.raise_for_status()
+            cur_balance = self.balance + 196
+            change = cur_balance - self.balance
+            if change <= 0:
+                change = 0
+            self.balance = cur_balance
+            logger.success(
+                f"{self.session_name} | <green> 🖌 Painted <cyan>{yx}</cyan> with <cyan>Pumkin bomb</cyan>! | got <red>+{change:.1f}</red> px 🔳 - Balance: <cyan>{self.balance}</cyan> px 🔳</green>")
+            await asyncio.sleep(delay=randint(delay_start, delay_end))
+        else:
+            paint_request = await http_client.post('https://notpx.app/api/v1/repaint/start',
+                                                    json={"pixelId": int(yx), "newColor": color},
+                                                   ssl=settings.ENABLE_SSL)
+            paint_request.raise_for_status()
+            paint_request_json = await paint_request.json()
+            cur_balance = paint_request_json.get("balance", self.balance)
+            change = cur_balance - self.balance
+            if change <= 0:
+                change = 0
+            self.balance = cur_balance
+            logger.success(f"{self.session_name} | <green> 🖌 Painted <cyan>{yx}</cyan> with color: <cyan>{color}</cyan> | got <red>+{change:.1f}</red> px 🔳 - Balance: <cyan>{self.balance}</cyan> px 🔳</green>")
+            await asyncio.sleep(delay=randint(delay_start, delay_end))
 
     async def paint(self, http_client: aiohttp.ClientSession, retries=20):
         try:
@@ -356,7 +373,23 @@ class Tapper:
             charges = stats_json.get('charges', 24)
             self.balance = stats_json.get('userBalance', 0)
             maxCharges = stats_json.get('maxCharges', 24)
-            logger.info(f"{self.session_name} | Total charges: <yellow>{charges}/{maxCharges} ⚡️</yellow>")
+            pumkin_bombs = stats_json.get('goods')
+            use_bombs = False
+            if settings.USE_PUMKIN_BOMB:
+                if "7" in pumkin_bombs.keys():
+                    total_bombs = pumkin_bombs["7"]
+                    use_bombs = True
+                    charges = total_bombs
+                    logger.info(f"{self.session_name} | Total bomb: <yellow>{total_bombs}</yellow>")
+                else:
+                    use_bombs = False
+                    logger.info(f"{self.session_name} | Out of pumkin bombs, switch to normal paint")
+                    logger.info(f"{self.session_name} | Total charges: <yellow>{charges}/{maxCharges} ⚡️</yellow>")
+            else:
+                use_bombs = False
+                logger.info(f"{self.session_name} | Total charges: <yellow>{charges}/{maxCharges} ⚡️</yellow>")
+
+
             for _ in range(charges - 1):
                 try:
                     q = await get_cords_and_color(user_id=self.user_id, template=self.template_to_join)
@@ -366,9 +399,10 @@ class Tapper:
                 coords = q["coords"]
                 color3x = q["color"]
                 yx = coords
-                await self.make_paint_request(http_client, yx, color3x, 2, 5)
+                await self.make_paint_request(http_client, yx, color3x, use_bombs, 2, 5)
 
         except Exception as error:
+            # traceback.print_exc()
             await asyncio.sleep(delay=10)
             if retries > 0:
                 logger.warning(f"{self.session_name} | 🟨 Unknown error occurred retrying to paint...")
@@ -518,7 +552,7 @@ class Tapper:
                         if tg_web_data is None:
                             continue
                             
-                        await inform(self.user_id, 0, key=self.key)
+                        await break_down(self.user_id)
 
                         http_client.headers["Authorization"] = f"initData {tg_web_data}"
                         logger.info(f"{self.session_name} | <light-blue>💠 Started logining in 💠</light-blue>")
