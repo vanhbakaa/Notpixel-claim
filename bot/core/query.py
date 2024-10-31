@@ -133,6 +133,10 @@ class Tapper:
 
             for task in settings.TASKS_TO_DO:
                 if task not in done_task_list:
+                    if task == "pixelInNickname":
+                        logger.warning(
+                            f"{self.session_name} | <yellow>Can't do add icon task in query mode!</yellow>")
+                        continue
                     if task == 'paint20pixels':
                         repaints_total = stats_json['repaintsTotal']
                         if repaints_total < 20:
@@ -449,4 +453,3 @@ async def run_query_tapper(query: str, proxy: str | None, multithread: bool, key
         await Tapper(query=query, multithread=multithread, key=key).run(proxy=proxy)
     except InvalidSession:
         logger.error(f"Invalid query: {query}")
-
