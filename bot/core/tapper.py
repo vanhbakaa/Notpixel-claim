@@ -375,7 +375,7 @@ class Tapper:
             maxCharges = stats_json.get('maxCharges', 24)
             pumkin_bombs = stats_json.get('goods')
             use_bombs = False
-            if settings.USE_PUMKIN_BOMB:
+            if settings.USE_PUMPKIN_BOMB:
                 if "7" in pumkin_bombs.keys():
                     total_bombs = pumkin_bombs["7"]
                     use_bombs = True
