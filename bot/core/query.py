@@ -1,6 +1,7 @@
 import asyncio
 import json
 import datetime
+import traceback
 from time import time
 from urllib.parse import unquote, quote
 
@@ -160,32 +161,60 @@ class Tapper:
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Unknown error when processing tasks: {error}")
 
-    async def make_paint_request(self, http_client: aiohttp.ClientSession, yx, color, delay_start, delay_end):
-        paint_request = await http_client.post('https://notpx.app/api/v1/repaint/start',
-                                                json={"pixelId": int(yx), "newColor": color},
-                                               ssl=settings.ENABLE_SSL)
-        paint_request.raise_for_status()
-        paint_request_json = await paint_request.json()
-        cur_balance = paint_request_json.get("balance", self.balance)
-        change = cur_balance - self.balance
-        if change <= 0:
-            change = 0
-        self.balance = cur_balance
-        logger.success(
-        f"{self.session_name} | <green> 🖌 Painted <cyan>{yx}</cyan> with color: <cyan>{color}</cyan> | got <red>+{change:.1f}</red> px 🔳 - Balance: <cyan>{self.balance}</cyan> px 🔳</green>")
-        await asyncio.sleep(delay=randint(delay_start, delay_end))
+    async def make_paint_request(self, http_client: aiohttp.ClientSession, yx, color, use_bombs, delay_start, delay_end):
+        if use_bombs:
+            paint_request = await http_client.post('https://notpx.app/api/v1/repaint/special',
+                                                   json={"pixelId": int(yx), "type": 7},
+                                                   ssl=settings.ENABLE_SSL)
+            paint_request.raise_for_status()
+            cur_balance = self.balance + 196
+            change = cur_balance - self.balance
+            if change <= 0:
+                change = 0
+            self.balance = cur_balance
+            logger.success(
+                f"{self.session_name} | <green> 🖌 Painted <cyan>{yx}</cyan> with <cyan>Pumkin bomb</cyan>! | got <red>+{change:.1f}</red> px 🔳 - Balance: <cyan>{self.balance}</cyan> px 🔳</green>")
+            await asyncio.sleep(delay=randint(delay_start, delay_end))
+        else:
+            paint_request = await http_client.post('https://notpx.app/api/v1/repaint/start',
+                                                    json={"pixelId": int(yx), "newColor": color},
+                                                   ssl=settings.ENABLE_SSL)
+            paint_request.raise_for_status()
+            paint_request_json = await paint_request.json()
+            cur_balance = paint_request_json.get("balance", self.balance)
+            change = cur_balance - self.balance
+            if change <= 0:
+                change = 0
+            self.balance = cur_balance
+            logger.success(f"{self.session_name} | <green> 🖌 Painted <cyan>{yx}</cyan> with color: <cyan>{color}</cyan> | got <red>+{change:.1f}</red> px 🔳 - Balance: <cyan>{self.balance}</cyan> px 🔳</green>")
+            await asyncio.sleep(delay=randint(delay_start, delay_end))
 
     async def paint(self, http_client: aiohttp.ClientSession, retries=20):
         try:
             stats = await http_client.get('https://notpx.app/api/v1/mining/status',
-                                          ssl=settings.ENABLE_SSL
-                                          )
+                                          ssl=settings.ENABLE_SSL)
             stats.raise_for_status()
             stats_json = await stats.json()
             charges = stats_json.get('charges', 24)
             self.balance = stats_json.get('userBalance', 0)
             maxCharges = stats_json.get('maxCharges', 24)
-            logger.info(f"{self.session_name} | Total charges: <yellow>{charges}/{maxCharges} ⚡️</yellow>")
+            pumkin_bombs = stats_json.get('goods')
+            use_bombs = False
+            if settings.USE_PUMKIN_BOMB:
+                if "7" in pumkin_bombs.keys():
+                    total_bombs = pumkin_bombs["7"]
+                    use_bombs = True
+                    charges = total_bombs
+                    logger.info(f"{self.session_name} | Total bomb: <yellow>{total_bombs}</yellow>")
+                else:
+                    use_bombs = False
+                    logger.info(f"{self.session_name} | Out of pumkin bombs, switch to normal paint")
+                    logger.info(f"{self.session_name} | Total charges: <yellow>{charges}/{maxCharges} ⚡️</yellow>")
+            else:
+                use_bombs = False
+                logger.info(f"{self.session_name} | Total charges: <yellow>{charges}/{maxCharges} ⚡️</yellow>")
+
+
             for _ in range(charges - 1):
                 try:
                     q = await get_cords_and_color(user_id=self.user_id, template=self.template_to_join)
@@ -195,11 +224,13 @@ class Tapper:
                 coords = q["coords"]
                 color3x = q["color"]
                 yx = coords
-                await self.make_paint_request(http_client, yx, color3x, 5, 10)
+                await self.make_paint_request(http_client, yx, color3x, use_bombs, 2, 5)
 
         except Exception as error:
+            # traceback.print_exc()
             await asyncio.sleep(delay=10)
             if retries > 0:
+                logger.warning(f"{self.session_name} | 🟨 Unknown error occurred retrying to paint...")
                 await self.paint(http_client=http_client, retries=retries-1)
 
     async def upgrade(self, http_client: aiohttp.ClientSession):
@@ -221,10 +252,11 @@ class Tapper:
                         upgrade_req = await http_client.get(f'https://notpx.app/api/v1/mining/boost/check/{name}',
                                                             ssl=settings.ENABLE_SSL)
                         upgrade_req.raise_for_status()
-                        logger.success(f"{self.session_name} | <green>🟩 Upgraded boost: <cyan>{name}<cyan></green>")
+                        logger.success(f"{self.session_name} | <green>🟩 Upgraded boost: <cyan>{name}</cyan></green>")
                         level += 1
                         await asyncio.sleep(delay=randint(2, 5))
                     except Exception as error:
+                        # traceback.print_exc()
                         logger.warning(f"{self.session_name} | 🟨 Not enough money to keep upgrading.")
                         await asyncio.sleep(delay=randint(5, 10))
                         return
@@ -417,5 +449,4 @@ async def run_query_tapper(query: str, proxy: str | None, multithread: bool, key
         await Tapper(query=query, multithread=multithread, key=key).run(proxy=proxy)
     except InvalidSession:
         logger.error(f"Invalid query: {query}")
-
 
