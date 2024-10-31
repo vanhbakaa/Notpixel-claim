@@ -42,20 +42,27 @@ def get_keys():
         keys = [line.strip() for line in f.readlines()]
 
     for key in keys:
+        if key == "":
+            continue
         keys_usage.update({key: 10})
 
     with open("keyfor25accs.txt", "r") as f:
         keys = [line.strip() for line in f.readlines()]
 
     for key in keys:
+        if key == "":
+            continue
         keys_usage.update({key: 25})
 
     with open("keyfor50accs.txt", "r") as f:
+
         keys = [line.strip() for line in f.readlines()]
 
     for key in keys:
+        if key == "":
+            continue
         keys_usage.update({key: 50})
-
+    # print(keys_usage)
     return keys_usage
 
 
