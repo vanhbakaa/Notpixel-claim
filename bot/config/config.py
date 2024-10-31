@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     DELAY_EACH_ACCOUNT: list[int] = [15, 25]
     START_DELAY: list[int] = [5, 100]
     AUTO_TASK: bool = True
-    TASKS_TO_DO: list[str] = ["paint20pixels", "x:notpixel", "x:notcoin", "channel:notcoin", "channel:notpixel_channel", "joinSquad", "jettonTask"]
+    USE_PUMPKIN_BOMB: bool = True
+    TASKS_TO_DO: list[str] = ["paint20pixels", "x:notpixel", "x:notcoin", "channel:notcoin", "channel:notpixel_channel", "joinSquad", "jettonTask", "pumpkin"]
     AUTO_DRAW: bool = True
     JOIN_TG_CHANNELS: bool = True
     CLAIM_REWARD: bool = True
