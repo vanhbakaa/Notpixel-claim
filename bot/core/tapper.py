@@ -69,7 +69,7 @@ class Tapper:
                 peer = await self.tg_client.resolve_peer(bot_peer)
             except (KeyError,ValueError):
                 logger.warning(f"Peer {bot_peer} not found in cache. Attempting to rejoin or fetch chat.")
-                chat = await self.tg_client.get_chat(chat.id)  # Fetch the chat to ensure it is cached
+                chat = await self.tg_client.get_chat(bot_peer)  # Fetch the chat to ensure it is cached
                 peer = await self.tg_client.resolve_peer(bot_peer)
             
             if bot_peer == self.main_bot_peer and not self.first_run:
@@ -442,7 +442,7 @@ class Tapper:
                 await self.make_paint_request(http_client, yx, color3x, use_bombs, 2, 5)
 
         except Exception as error:
-            traceback.print_exc()
+            # traceback.print_exc()
             await asyncio.sleep(delay=10)
             if retries > 0:
                 logger.warning(f"{self.session_name} | 🟨 Unknown error occurred retrying to paint...")
