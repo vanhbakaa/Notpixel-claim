@@ -233,28 +233,32 @@ class Tapper:
             logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
 
     async def add_icon(self):
-        if not self.tg_client.is_connected:
-            try:
-                await self.tg_client.connect()
-            except Exception as error:
-                logger.error(f"{self.session_name} | 🟥 Error while TG connecting: {error}")
-
-        me = await self.tg_client.get_me()
-        name = randint(1, 2)
-        if "▪️" not in f"{str(me.first_name)} {str(me.last_name)}":
-            if name == 1:
-                if me.first_name is not None:
-                    new_display_name = f"{me.first_name} ▪️"
+        try:
+            if not self.tg_client.is_connected:
+                try:
+                    await self.tg_client.connect()
+                except Exception as error:
+                    logger.error(f"{self.session_name} | 🟥 Error while TG connecting: {error}")
+    
+            me = await self.tg_client.get_me()
+            name = randint(1, 2)
+            if "▪️" not in f"{str(me.first_name)} {str(me.last_name)}":
+                if name == 1:
+                    if me.first_name is not None:
+                        new_display_name = f"{me.first_name} ▪️"
+                    else:
+                        new_display_name = "▪️"
                 else:
-                    new_display_name = "▪️"
-            else:
-                if me.last_name is not None:
-                    new_display_name = f"{me.last_name} ▪️"
-                else:
-                    new_display_name = "▪️"
-            await self.tg_client.update_profile(last_name=new_display_name)
-            logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
+                    if me.last_name is not None:
+                        new_display_name = f"{me.last_name} ▪️"
+                    else:
+                        new_display_name = "▪️"
+                await self.tg_client.update_profile(last_name=new_display_name)
+                logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
 
+        except Exception as error:
+            logger.error(f"{self.session_name} | 🟥 Error while changing username: {error}")
+            await asyncio.sleep(delay=3)
         finally:
             if self.tg_client.is_connected:
                 await self.tg_client.disconnect()
