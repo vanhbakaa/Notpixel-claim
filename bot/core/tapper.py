@@ -10,7 +10,7 @@ import aiohttp
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
 from pyrogram import Client
-from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered
+from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered, FloodWait
 from pyrogram.raw import types
 from pyrogram.raw.functions.messages import RequestAppWebView
 
@@ -64,8 +64,14 @@ class Tapper:
 
                 except (Unauthorized, UserDeactivated, AuthKeyUnregistered):
                     raise InvalidSession(self.session_name)
-            peer = await self.tg_client.resolve_peer(bot_peer)
-
+            
+            try:
+                peer = await self.tg_client.resolve_peer(bot_peer)
+            except (KeyError,ValueError):
+                logger.warning(f"Peer {bot_peer} not found in cache. Attempting to rejoin or fetch chat.")
+                chat = await self.tg_client.get_chat(chat.id)  # Fetch the chat to ensure it is cached
+                peer = await self.tg_client.resolve_peer(bot_peer)
+            
             if bot_peer == self.main_bot_peer and not self.first_run:
                 if self.joined is False:
                     web_view = await self.tg_client.invoke(RequestAppWebView(
@@ -135,15 +141,12 @@ class Tapper:
 
         except InvalidSession as error:
             raise error
-
+        except FloodWait as e:
+            logger.warning(f"{self.session_name} | Get data failed, Retrying... (plz wait {e.value} second)")
+            await asyncio.sleep(e.value) 
         except Exception as error:
-            if "[420 FLOOD_WAIT_X]" in str(error):
-                logger.warning(
-                    f"{self.session_name} | Get data failed, Retrying... (This is normal don't ask me about it -_-)")
-                await asyncio.sleep(delay=3)
-            else:
-                logger.error(f"{self.session_name} | 🟥 Unknown error during Authorization: {error}")
-                await asyncio.sleep(delay=3)
+            logger.error(f"{self.session_name} | 🟥 Unknown error during Authorization: {error}")
+            await asyncio.sleep(delay=3)
 
     async def join_squad(self, http_client, tg_web_data: str, user_agent):
         custom_headers = headers_squads
@@ -237,19 +240,19 @@ class Tapper:
 
         me = await self.tg_client.get_me()
         name = randint(1, 2)
-        if name == 1:
-            if me.first_name is not None:
-                new_display_name = f"{me.first_name} ▪️"
+        if "▪️" not in f"{str(me.first_name)} {str(me.last_name)}":
+            if name == 1:
+                if me.first_name is not None:
+                    new_display_name = f"{me.first_name} ▪️"
+                else:
+                    new_display_name = "▪️"
             else:
-                new_display_name = "▪️"
-            await self.tg_client.update_profile(first_name=new_display_name)
-        else:
-            if me.last_name is not None:
-                new_display_name = f"{me.last_name} ▪️"
-            else:
-                new_display_name = "▪️"
+                if me.last_name is not None:
+                    new_display_name = f"{me.last_name} ▪️"
+                else:
+                    new_display_name = "▪️"
             await self.tg_client.update_profile(last_name=new_display_name)
-        logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
+            logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
 
         if self.tg_client.is_connected:
             await self.tg_client.disconnect()
@@ -413,11 +416,11 @@ class Tapper:
             pumkin_bombs = stats_json.get('goods')
             use_bombs = False
             if settings.USE_PUMPKIN_BOMB:
-                if "7" in pumkin_bombs.keys():
-                    total_bombs = pumkin_bombs["7"]
+                if pumkin_bombs.keys():
+                    goods_key, goods_value = next(iter(stats_json.get("goods",{}).items()))
                     use_bombs = True
-                    charges = total_bombs + 1
-                    logger.info(f"{self.session_name} | Total bomb: <yellow>{total_bombs}</yellow>")
+                    charges = goods_value
+                    logger.info(f"{self.session_name} | Total bomb: <yellow>{goods_value}</yellow>")
                 else:
                     use_bombs = False
                     logger.info(f"{self.session_name} | Out of pumkin bombs, switch to normal paint")
@@ -426,7 +429,8 @@ class Tapper:
                 use_bombs = False
                 logger.info(f"{self.session_name} | Total charges: <yellow>{charges}/{maxCharges} ⚡️</yellow>")
 
-            for _ in range(charges - 1):
+
+            for _ in range(charges):
                 try:
                     q = await get_cords_and_color(user_id=self.user_id, template=self.template_to_join)
                 except Exception as error:
@@ -438,7 +442,7 @@ class Tapper:
                 await self.make_paint_request(http_client, yx, color3x, use_bombs, 2, 5)
 
         except Exception as error:
-            # traceback.print_exc()
+            traceback.print_exc()
             await asyncio.sleep(delay=10)
             if retries > 0:
                 logger.warning(f"{self.session_name} | 🟨 Unknown error occurred retrying to paint...")
