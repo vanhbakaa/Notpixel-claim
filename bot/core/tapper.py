@@ -230,8 +230,10 @@ class Tapper:
             country = response_json.get('country', 'NO')
 
             logger.info(f"{self.session_name} |🟩 Logging in with proxy IP {ip} and country {country}")
+            return True
         except Exception as error:
             logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
+            return False
 
     async def add_icon(self):
         try:
@@ -249,12 +251,13 @@ class Tapper:
                         new_display_name = f"{me.first_name} ▪️"
                     else:
                         new_display_name = "▪️"
+                    await self.tg_client.update_profile(first_name=new_display_name)
                 else:
                     if me.last_name is not None:
                         new_display_name = f"{me.last_name} ▪️"
                     else:
                         new_display_name = "▪️"
-                await self.tg_client.update_profile(last_name=new_display_name)
+                    await self.tg_client.update_profile(last_name=new_display_name)
                 logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
 
         except Exception as error:
@@ -570,7 +573,9 @@ class Tapper:
 
         async with aiohttp.ClientSession(headers=headers, connector=proxy_conn, trust_env=True) as http_client:
             if proxy:
-                await self.check_proxy(http_client=http_client, service_name="NotPixel", proxy=proxy)
+                a = await self.check_proxy(http_client=http_client, service_name="NotPixel", proxy=proxy)
+                if a is False:
+                    http_client._connector = None
 
             ref = settings.REF_ID
             logger.info(f"{self.session_name} | 🔑 Your key: <yellow>{self.key}</yellow>")
