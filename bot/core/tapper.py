@@ -134,9 +134,7 @@ class Tapper:
                 auth_token = auth_token.replace(f"{key}", f'{key}={value}')
 
             await asyncio.sleep(10)
-
-            if self.tg_client.is_connected:
-                await self.tg_client.disconnect()
+            
             return auth_token
 
         except InvalidSession as error:
@@ -147,6 +145,9 @@ class Tapper:
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Unknown error during Authorization: {error}")
             await asyncio.sleep(delay=3)
+        finally:
+            if self.tg_client.is_connected:
+                await self.tg_client.disconnect()
 
     async def join_squad(self, http_client, tg_web_data: str, user_agent):
         custom_headers = headers_squads
@@ -190,7 +191,7 @@ class Tapper:
             logger.success(f"{self.session_name} | 🟩 <green>Joined squad</green>")
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Unknown error when joining squad: {error}")
-
+        
     async def login(self, http_client: aiohttp.ClientSession):
         try:
 
@@ -254,9 +255,9 @@ class Tapper:
             await self.tg_client.update_profile(last_name=new_display_name)
             logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
 
-        if self.tg_client.is_connected:
-            await self.tg_client.disconnect()
-
+        finally:
+            if self.tg_client.is_connected:
+                await self.tg_client.disconnect()
 
     async def join_tg_channel(self, link: str):
         if not self.tg_client.is_connected:
@@ -278,7 +279,10 @@ class Tapper:
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Error while join tg channel: {error}")
             await asyncio.sleep(delay=3)
-
+        finally:
+            if self.tg_client.is_connected:
+                await self.tg_client.disconnect()
+                
     async def get_balance(self, http_client: aiohttp.ClientSession):
         try:
             balance_req = await http_client.get('https://notpx.app/api/v1/mining/status',
