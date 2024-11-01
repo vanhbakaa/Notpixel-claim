@@ -140,8 +140,9 @@ class Tapper:
         except InvalidSession as error:
             raise error
         except FloodWait as e:
-            logger.warning(f"{self.session_name} | Get data failed, Retrying... (plz wait {e.value} second)")
-            await asyncio.sleep(e.value) 
+            logger.warning(
+                    f"{self.session_name} | Get data failed, Retrying... (This is normal don't ask me about it -_-)")
+            await asyncio.sleep(delay=3)
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Unknown error during Authorization: {error}")
             await asyncio.sleep(delay=3)
