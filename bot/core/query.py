@@ -76,8 +76,10 @@ class Tapper:
             country = response_json.get('country', 'NO')
 
             logger.info(f"{self.session_name} |🟩 Logging in with proxy IP {ip} and country {country}")
+            return True
         except Exception as error:
             logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
+            return False
 
     async def get_balance(self, http_client: aiohttp.ClientSession):
         try:
@@ -350,7 +352,9 @@ class Tapper:
 
         async with aiohttp.ClientSession(headers=headers, connector=proxy_conn, trust_env=True) as http_client:
             if proxy:
-                await self.check_proxy(http_client=http_client, service_name="NotPixel", proxy=proxy)
+                a = await self.check_proxy(http_client=http_client, service_name="NotPixel", proxy=proxy)
+                if a is False:
+                    http_client._connector = None
 
             logger.info(f"{self.session_name} | 🔑 Your key: <yellow>{self.key}</yellow>")
 
