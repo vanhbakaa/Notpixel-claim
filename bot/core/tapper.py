@@ -133,6 +133,9 @@ class Tapper:
             for key, value in init_data.items():
                 auth_token = auth_token.replace(f"{key}", f'{key}={value}')
 
+            if self.tg_client.is_connected:
+                await self.tg_client.disconnect()
+                
             await asyncio.sleep(10)
             
             return auth_token
