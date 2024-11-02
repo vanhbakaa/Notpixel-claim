@@ -32,7 +32,7 @@ class Tapper:
         self.first_run = first_run
         self.session_name = tg_client.name
         self.start_param = ''
-        self.main_bot_peer = 'notpx_bot'
+        self.main_bot_peer = 'notpixel'
         self.squads_bot_peer = 'notgames_bot'
         self.joined = None
         self.balance = 0
