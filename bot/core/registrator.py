@@ -53,7 +53,6 @@ async def get_tg_client(session_name: str, proxy: str | None) -> Client:
         api_id=settings.API_ID,
         api_hash=settings.API_HASH,
         workdir="sessions/",
-        plugins=dict(root="bot/plugins"),
         proxy=proxy_dict
     )
 
