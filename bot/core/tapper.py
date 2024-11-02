@@ -62,15 +62,19 @@ class Tapper:
             async with self.tg_client:
                 try:
                     self.peer = await self.tg_client.resolve_peer(bot_peer)
+
+                except (KeyError,ValueError):
+                    await asyncio.sleep(delay=3)
+
                 except FloodWait as error:
-                    logger.warning(f"FloodWait error | Retry in {error.value} seconds")
+                    logger.warning(f"{self.session_name} | FloodWait error | Retry in <e>{error.value}</e> seconds")
                     await asyncio.sleep(delay=error.value)
                     # update in session db peer ids to fix this errors
                     async for dialog in self.tg_client.get_dialogs():
                         if dialog.chat and dialog.chat.username and dialog.chat.username == bot_peer:
                             break
                     self.peer = await self.tg_client.resolve_peer(bot_peer)
-                    
+
                 if bot_peer == self.main_bot_peer and not self.first_run:
                     if self.joined is False:
                         web_view = await self.tg_client.invoke(RequestAppWebView(
@@ -134,10 +138,7 @@ class Tapper:
 
         except InvalidSession as error:
             raise error
-        except FloodWait as e:
-            logger.warning(
-                f"{self.session_name} | Get data failed, Retrying... (This is normal don't ask me about it -_-)")
-            await asyncio.sleep(delay=3)
+
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Unknown error during Authorization: {error}")
             await asyncio.sleep(delay=3)
@@ -192,8 +193,8 @@ class Tapper:
             logger.error(f"{self.session_name} | 🟥 Unknown error when joining squad: {error}")
 
     async def login(self, http_client: aiohttp.ClientSession):
-        try:
 
+        try:
             await http_client.options("https://notpx.app/api/v1/users/me", ssl=settings.ENABLE_SSL)
             response = await http_client.get("https://notpx.app/api/v1/users/me", ssl=settings.ENABLE_SSL)
             response.raise_for_status()
@@ -258,7 +259,7 @@ class Tapper:
             await asyncio.sleep(delay=3)
 
     async def join_tg_channel(self, link: str):
-        
+
         try:
             async with self.tg_client:
                 parsed_link = link.split('/')[-1]
@@ -597,7 +598,7 @@ class Tapper:
                         await break_down(self.user_id)
 
                         http_client.headers["Authorization"] = f"initData {tg_web_data}"
-                        
+
                         user_info = await self.login(http_client=http_client)
                         if not user_info:
                             continue
