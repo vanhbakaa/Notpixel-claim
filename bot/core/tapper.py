@@ -42,7 +42,7 @@ class Tapper:
         self.key = key
         self.inSquad = False
 
-    async def get_tg_web_data(self, proxy: str | None, ref: str, bot_peer: str, short_name: str) -> str:
+    async def get_tg_web_data(self, proxy: str | None, ref: str, bot_peer: str, short_name: str):
         if proxy:
             proxy = Proxy.from_str(proxy)
             proxy_dict = dict(
@@ -64,14 +64,14 @@ class Tapper:
 
                 except (Unauthorized, UserDeactivated, AuthKeyUnregistered):
                     raise InvalidSession(self.session_name)
-            
+
             try:
                 peer = await self.tg_client.resolve_peer(bot_peer)
-            except (KeyError,ValueError):
+            except (KeyError, ValueError):
                 logger.warning(f"Peer {bot_peer} not found in cache. Attempting to rejoin or fetch chat.")
                 chat = await self.tg_client.get_chat(bot_peer)  # Fetch the chat to ensure it is cached
                 peer = await self.tg_client.resolve_peer(bot_peer)
-            
+
             if bot_peer == self.main_bot_peer and not self.first_run:
                 if self.joined is False:
                     web_view = await self.tg_client.invoke(RequestAppWebView(
@@ -133,19 +133,23 @@ class Tapper:
             for key, value in init_data.items():
                 auth_token = auth_token.replace(f"{key}", f'{key}={value}')
 
+            if self.tg_client.is_connected:
+                await self.tg_client.disconnect()
+
             await asyncio.sleep(10)
-            
+
             return auth_token
 
         except InvalidSession as error:
             raise error
         except FloodWait as e:
             logger.warning(
-                    f"{self.session_name} | Get data failed, Retrying... (This is normal don't ask me about it -_-)")
+                f"{self.session_name} | Get data failed, Retrying... (This is normal don't ask me about it -_-)")
             await asyncio.sleep(delay=3)
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Unknown error during Authorization: {error}")
             await asyncio.sleep(delay=3)
+            return None
 
     async def join_squad(self, http_client, tg_web_data: str, user_agent):
         custom_headers = headers_squads
@@ -189,7 +193,7 @@ class Tapper:
             logger.success(f"{self.session_name} | 🟩 <green>Joined squad</green>")
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Unknown error when joining squad: {error}")
-        
+
     async def login(self, http_client: aiohttp.ClientSession):
         try:
 
@@ -216,7 +220,7 @@ class Tapper:
             logger.error(f"{self.session_name} | <red>Unknown error when processing user info: {error}</red>")
             await asyncio.sleep(delay=3)
 
-    async def check_proxy(self, http_client: aiohttp.ClientSession, service_name, proxy: Proxy) -> None:
+    async def check_proxy(self, http_client: aiohttp.ClientSession, service_name, proxy: Proxy):
         try:
             response = await http_client.get(url='https://ipinfo.io/json', timeout=aiohttp.ClientTimeout(20),
                                              ssl=settings.ENABLE_SSL)
@@ -239,7 +243,7 @@ class Tapper:
                     await self.tg_client.connect()
                 except Exception as error:
                     logger.error(f"{self.session_name} | 🟥 Error while TG connecting: {error}")
-    
+
             me = await self.tg_client.get_me()
             name = randint(1, 2)
             if "▪️" not in f"{str(me.first_name)} {str(me.last_name)}":
@@ -257,6 +261,9 @@ class Tapper:
                     await self.tg_client.update_profile(last_name=new_display_name)
                 logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
 
+            if self.tg_client.is_connected:
+                await self.tg_client.disconnect()
+            
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Error while changing username: {error}")
             await asyncio.sleep(delay=3)
@@ -278,10 +285,11 @@ class Tapper:
 
             if self.tg_client.is_connected:
                 await self.tg_client.disconnect()
+            
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Error while join tg channel: {error}")
             await asyncio.sleep(delay=3)
-                
+
     async def get_balance(self, http_client: aiohttp.ClientSession):
         try:
             balance_req = await http_client.get('https://notpx.app/api/v1/mining/status',
@@ -420,7 +428,7 @@ class Tapper:
             use_bombs = False
             if settings.USE_PUMPKIN_BOMB:
                 if pumkin_bombs.keys():
-                    goods_key, goods_value = next(iter(stats_json.get("goods",{}).items()))
+                    goods_key, goods_value = next(iter(stats_json.get("goods", {}).items()))
                     use_bombs = True
                     charges = goods_value
                     logger.info(f"{self.session_name} | Total bomb: <yellow>{goods_value}</yellow>")
@@ -431,7 +439,6 @@ class Tapper:
             else:
                 use_bombs = False
                 logger.info(f"{self.session_name} | Total charges: <yellow>{charges}/{maxCharges} ⚡️</yellow>")
-
 
             for _ in range(charges):
                 try:
