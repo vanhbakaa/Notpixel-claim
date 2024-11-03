@@ -69,7 +69,7 @@ class Tapper:
                 except FloodWait as error:
                     logger.warning(f"{self.session_name} | FloodWait error | Retry in <e>{error.value}</e> seconds")
                     await asyncio.sleep(delay=error.value)
-                    # update in session db peer ids to fix this errors
+                    # Attempt to update session db peer IDs by fetching dialogs
                     peer_found = False
                     async for dialog in self.tg_client.get_dialogs():
                         if dialog.chat and dialog.chat.username and dialog.chat.username == bot_peer:
