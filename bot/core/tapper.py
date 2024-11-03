@@ -59,85 +59,89 @@ class Tapper:
         self.tg_client.proxy = proxy_dict
 
         try:
-            async with self.tg_client:
-                try:
+            if not self.tg_client.is_connected:
+                await self.tg_client.connect()
+            try:
+                self.peer = await self.tg_client.resolve_peer(bot_peer)
+
+            except (KeyError, ValueError):
+                await asyncio.sleep(delay=3)
+
+            except FloodWait as error:
+                logger.warning(f"{self.session_name} | FloodWait error | Retry in <e>{error.value}</e> seconds")
+                await asyncio.sleep(delay=error.value)
+                # Attempt to update session db peer IDs by fetching dialogs
+                peer_found = False
+                async for dialog in self.tg_client.get_dialogs():
+                    if dialog.chat and dialog.chat.username and dialog.chat.username == bot_peer:
+                        peer_found = True
+                        break
+                if not peer_found:
                     self.peer = await self.tg_client.resolve_peer(bot_peer)
 
-                except (KeyError,ValueError):
-                    await asyncio.sleep(delay=3)
-
-                except FloodWait as error:
-                    logger.warning(f"{self.session_name} | FloodWait error | Retry in <e>{error.value}</e> seconds")
-                    await asyncio.sleep(delay=error.value)
-                    # Attempt to update session db peer IDs by fetching dialogs
-                    peer_found = False
-                    async for dialog in self.tg_client.get_dialogs():
-                        if dialog.chat and dialog.chat.username and dialog.chat.username == bot_peer:
-                            peer_found = True
-                            break
-                    if not peer_found:
-                        self.peer = await self.tg_client.resolve_peer(bot_peer)
-
-                if bot_peer == self.main_bot_peer and not self.first_run:
-                    if self.joined is False:
-                        web_view = await self.tg_client.invoke(RequestAppWebView(
-                            peer=self.peer,
-                            platform='android',
-                            app=types.InputBotAppShortName(bot_id=self.peer, short_name=short_name),
-                            write_allowed=True,
-                            start_param=f"f{self.template_to_join}_t"
-                        ))
-                        self.joined = True
-                    else:
-                        web_view = await self.tg_client.invoke(RequestAppWebView(
+            if bot_peer == self.main_bot_peer and not self.first_run:
+                if self.joined is False:
+                    web_view = await self.tg_client.invoke(RequestAppWebView(
+                        peer=self.peer,
+                        platform='android',
+                        app=types.InputBotAppShortName(bot_id=self.peer, short_name=short_name),
+                        write_allowed=True,
+                        start_param=f"f{self.template_to_join}_t"
+                    ))
+                    self.joined = True
+                else:
+                    web_view = await self.tg_client.invoke(RequestAppWebView(
                         peer=self.peer,
                         platform='android',
                         app=types.InputBotAppShortName(bot_id=self.peer, short_name=short_name),
                         write_allowed=True
-                        ))
-                else:
-                    if bot_peer == self.main_bot_peer:
-                        logger.info(f"{self.session_name} | First run, using ref")
-                        self.first_run = False
-                        await append_line_to_file(self.session_name)
-                    web_view = await self.tg_client.invoke(RequestAppWebView(
+                    ))
+            else:
+                if bot_peer == self.main_bot_peer:
+                    logger.info(f"{self.session_name} | First run, using ref")
+                    self.first_run = False
+                    await append_line_to_file(self.session_name)
+                web_view = await self.tg_client.invoke(RequestAppWebView(
                     peer=self.peer,
                     platform='android',
                     app=types.InputBotAppShortName(bot_id=self.peer, short_name=short_name),
                     write_allowed=True,
                     start_param=ref
-                    ))
+                ))
 
-                auth_url = web_view.url
-                # print(auth_url)
+            auth_url = web_view.url
+            # print(auth_url)
 
-                tg_web_data = unquote(
+            tg_web_data = unquote(
                 string=unquote(string=auth_url.split('tgWebAppData=')[1].split('&tgWebAppVersion')[0]))
-                start_param = re.findall(r'start_param=([^&]+)', tg_web_data)
-                user = re.findall(r'user=([^&]+)', tg_web_data)[0]
-                self.user_id = json.loads(user)['id']
+            start_param = re.findall(r'start_param=([^&]+)', tg_web_data)
+            user = re.findall(r'user=([^&]+)', tg_web_data)[0]
+            self.user_id = json.loads(user)['id']
 
-                init_data = {
+            init_data = {
                 'auth_date': re.findall(r'auth_date=([^&]+)', tg_web_data)[0],
                 'chat_instance': re.findall(r'chat_instance=([^&]+)', tg_web_data)[0],
                 'chat_type': re.findall(r'chat_type=([^&]+)', tg_web_data)[0],
                 'hash': re.findall(r'hash=([^&]+)', tg_web_data)[0],
                 'user': quote(user),
-                }
+            }
 
-                if start_param:
-                    start_param = start_param[0]
-                    init_data['start_param'] = start_param
-                    self.start_param = start_param
+            if start_param:
+                start_param = start_param[0]
+                init_data['start_param'] = start_param
+                self.start_param = start_param
 
-                ordering = ["user", "chat_instance", "chat_type", "start_param", "auth_date", "hash"]
-                auth_token = '&'.join([var for var in ordering if var in init_data])
+            ordering = ["user", "chat_instance", "chat_type", "start_param", "auth_date", "hash"]
+            auth_token = '&'.join([var for var in ordering if var in init_data])
 
-                for key, value in init_data.items():
-                    auth_token = auth_token.replace(f"{key}", f'{key}={value}')
-                await asyncio.sleep(10)
+            for key, value in init_data.items():
+                auth_token = auth_token.replace(f"{key}", f'{key}={value}')
+            await asyncio.sleep(10)
 
-                return auth_token
+            if self.tg_client.is_connected:
+                await self.tg_client.disconnect()
+
+            return auth_token
 
         except InvalidSession as error:
             raise error
@@ -163,7 +167,7 @@ class Tapper:
             qwe = f'{{"webAppData": "{tg_web_data}"}}'
             r = json.loads(qwe)
             await http_client.options("https://api.notcoin.tg/auth/login", headers=custom_headers,
-                                               ssl=settings.ENABLE_SSL)
+                                      ssl=settings.ENABLE_SSL)
             login_req = await http_client.post("https://api.notcoin.tg/auth/login", json=r, headers=custom_headers,
                                                ssl=settings.ENABLE_SSL)
 
@@ -184,8 +188,8 @@ class Tapper:
         try:
             logger.info(f"{self.session_name} | Joining squad..")
             await http_client.options("https://api.notcoin.tg/squads/absolateA/join",
-                                              headers=custom_headers,
-                                              ssl=settings.ENABLE_SSL)
+                                      headers=custom_headers,
+                                      ssl=settings.ENABLE_SSL)
             join_req = await http_client.post("https://api.notcoin.tg/squads/absolateA/join",
                                               json=json.loads('{"chatId": -1002312810276}'), headers=custom_headers,
                                               ssl=settings.ENABLE_SSL)
@@ -239,23 +243,28 @@ class Tapper:
 
     async def add_icon(self):
         try:
-            async with self.tg_client:
-                me = await self.tg_client.get_me()
-                name = randint(1, 2)
-                if "▪️" not in f"{str(me.first_name)} {str(me.last_name)}":
-                    if name == 1:
-                        if me.first_name is not None:
-                            new_display_name = f"{me.first_name} ▪️"
-                        else:
-                            new_display_name = "▪️"
-                        await self.tg_client.update_profile(first_name=new_display_name)
+            if not self.tg_client.is_connected:
+                await self.tg_client.connect()
+
+            me = await self.tg_client.get_me()
+            name = randint(1, 2)
+            if "▪️" not in f"{str(me.first_name)} {str(me.last_name)}":
+                if name == 1:
+                    if me.first_name is not None:
+                        new_display_name = f"{me.first_name} ▪️"
                     else:
-                        if me.last_name is not None:
-                            new_display_name = f"{me.last_name} ▪️"
-                        else:
-                            new_display_name = "▪️"
-                        await self.tg_client.update_profile(last_name=new_display_name)
-                    logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
+                        new_display_name = "▪️"
+                    await self.tg_client.update_profile(first_name=new_display_name)
+                else:
+                    if me.last_name is not None:
+                        new_display_name = f"{me.last_name} ▪️"
+                    else:
+                        new_display_name = "▪️"
+                    await self.tg_client.update_profile(last_name=new_display_name)
+                logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
+
+            if self.tg_client.is_connected:
+                await self.tg_client.disconnect()
 
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Error while changing username: {error}")
@@ -264,14 +273,18 @@ class Tapper:
     async def join_tg_channel(self, link: str):
 
         try:
-            async with self.tg_client:
-                parsed_link = link.split('/')[-1]
-                logger.info(f"{self.session_name} | 🟨 Joining tg channel {parsed_link}")
+            if not self.tg_client.is_connected:
+                await self.tg_client.connect()
+            parsed_link = link.split('/')[-1]
+            logger.info(f"{self.session_name} | 🟨 Joining tg channel {parsed_link}")
 
-                await self.tg_client.join_chat(parsed_link)
+            await self.tg_client.join_chat(parsed_link)
 
-                logger.success(f"{self.session_name} | 🟩 <green>Joined tg channel <cyan>{parsed_link}</cyan></green>")
-            
+            logger.success(f"{self.session_name} | 🟩 <green>Joined tg channel <cyan>{parsed_link}</cyan></green>")
+
+            if self.tg_client.is_connected:
+                await self.tg_client.disconnect()
+
         except Exception as error:
             logger.error(f"{self.session_name} | 🟥 Error while join tg channel: {error}")
             await asyncio.sleep(delay=3)
@@ -290,9 +303,9 @@ class Tapper:
     async def get_status(self, http_client: aiohttp.ClientSession):
         try:
             await http_client.options('https://notpx.app/api/v1/mining/status',
-                                                ssl=settings.ENABLE_SSL)
+                                      ssl=settings.ENABLE_SSL)
             response = await http_client.get('https://notpx.app/api/v1/mining/status',
-                                                ssl=settings.ENABLE_SSL)
+                                             ssl=settings.ENABLE_SSL)
             response.raise_for_status()
             response_json = await response.json()
             return response_json
@@ -356,7 +369,7 @@ class Tapper:
                             await self.join_tg_channel(name)
                             await asyncio.sleep(delay=3)
                     await http_client.options(f'https://notpx.app/api/v1/mining/task/check/{task}',
-                                                         ssl=settings.ENABLE_SSL)
+                                              ssl=settings.ENABLE_SSL)
                     tasks_status = await http_client.get(f'https://notpx.app/api/v1/mining/task/check/{task}',
                                                          ssl=settings.ENABLE_SSL)
                     tasks_status.raise_for_status()
@@ -382,7 +395,7 @@ class Tapper:
                                  delay_end):
         if use_bombs:
             await http_client.options('https://notpx.app/api/v1/repaint/special',
-                                                   ssl=settings.ENABLE_SSL)
+                                      ssl=settings.ENABLE_SSL)
             paint_request = await http_client.post('https://notpx.app/api/v1/repaint/special',
                                                    json={"pixelId": int(yx), "type": 7},
                                                    ssl=settings.ENABLE_SSL)
@@ -397,7 +410,7 @@ class Tapper:
             await asyncio.sleep(delay=randint(delay_start, delay_end))
         else:
             await http_client.options('https://notpx.app/api/v1/repaint/start',
-                                                   ssl=settings.ENABLE_SSL)
+                                      ssl=settings.ENABLE_SSL)
             paint_request = await http_client.post('https://notpx.app/api/v1/repaint/start',
                                                    json={"pixelId": int(yx), "newColor": color},
                                                    ssl=settings.ENABLE_SSL)
@@ -466,7 +479,7 @@ class Tapper:
                 while name not in settings.IGNORED_BOOSTS and level < boosts_max_levels[name]:
                     try:
                         await http_client.options(f'https://notpx.app/api/v1/mining/boost/check/{name}',
-                                                            ssl=settings.ENABLE_SSL)
+                                                  ssl=settings.ENABLE_SSL)
                         upgrade_req = await http_client.get(f'https://notpx.app/api/v1/mining/boost/check/{name}',
                                                             ssl=settings.ENABLE_SSL)
                         upgrade_req.raise_for_status()
@@ -490,7 +503,7 @@ class Tapper:
             for _ in range(2):
                 try:
                     await http_client.options(f'https://notpx.app/api/v1/mining/claim',
-                                                     ssl=settings.ENABLE_SSL)
+                                              ssl=settings.ENABLE_SSL)
                     response = await http_client.get(f'https://notpx.app/api/v1/mining/claim',
                                                      ssl=settings.ENABLE_SSL)
                     response.raise_for_status()
@@ -512,7 +525,7 @@ class Tapper:
             status = await self.get_status(http_client)
             league = status["league"]
             await http_client.options(f'https://notpx.app/api/v1/ratings/squads?league={league}',
-                                               ssl=settings.ENABLE_SSL)
+                                      ssl=settings.ENABLE_SSL)
             squads_req = await http_client.get(f'https://notpx.app/api/v1/ratings/squads?league={league}',
                                                ssl=settings.ENABLE_SSL)
             squads_req.raise_for_status()
@@ -527,7 +540,7 @@ class Tapper:
     async def notpx_template(self, http_client: aiohttp.ClientSession):
         try:
             await http_client.options(f'https://notpx.app/api/v1/image/template/my',
-                                              ssl=settings.ENABLE_SSL)
+                                      ssl=settings.ENABLE_SSL)
             stats_req = await http_client.get(f'https://notpx.app/api/v1/image/template/my',
                                               ssl=settings.ENABLE_SSL)
             stats_req.raise_for_status()
