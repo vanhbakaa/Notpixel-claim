@@ -8,6 +8,7 @@ headers = {
     'Sec-Fetch-Dest': 'empty',
     'Sec-Fetch-Mode': 'cors',
     'Sec-Fetch-Site': 'same-site',
+    'X-Requested-With': "org.telegram.messenger",
     'Sec-Ch-Ua': '"Chromium";v="130", "Android WebView";v="130", "Not?A_Brand";v="99"',
     'Sec-Ch-Aa-Mobile': "?1",
     'Sec-Ch-Ua-platform': '"Android"',
