@@ -596,6 +596,7 @@ class Tapper:
                         tg_web_data = await self.get_tg_web_data(proxy=proxy, bot_peer=self.main_bot_peer, ref=ref,
                                                                  short_name="app")
                         if tg_web_data is None:
+                            await asyncio.sleep(15)
                             continue
 
                         await break_down(self.user_id)
