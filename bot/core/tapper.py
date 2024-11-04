@@ -43,7 +43,7 @@ class Tapper:
         self.inSquad = False
         self.peer = None
 
-    async def get_tg_web_data(self, proxy: str | None, ref: str, bot_peer: str, short_name: str) -> str | bool:
+    async def get_tg_web_data(self, proxy: str | None, ref:str, bot_peer:str, short_name:str) -> str:
         if proxy:
             proxy = Proxy.from_str(proxy)
             proxy_dict = dict(
@@ -60,40 +60,28 @@ class Tapper:
 
         try:
             if not self.tg_client.is_connected:
-                await self.tg_client.connect()
-            try:
-                self.peer = await self.tg_client.resolve_peer(bot_peer)
+                try:
+                    await self.tg_client.connect()
 
-            except (KeyError, ValueError):
-                await asyncio.sleep(delay=3)
-
-            except FloodWait as error:
-                logger.warning(f"{self.session_name} | FloodWait error | Retry in <e>{error.value}</e> seconds")
-                await asyncio.sleep(delay=error.value)
-                # Attempt to update session db peer IDs by fetching dialogs
-                peer_found = False
-                async for dialog in self.tg_client.get_dialogs():
-                    if dialog.chat and dialog.chat.username and dialog.chat.username == bot_peer:
-                        peer_found = True
-                        break
-                if not peer_found:
-                    self.peer = await self.tg_client.resolve_peer(bot_peer)
+                except (Unauthorized, UserDeactivated, AuthKeyUnregistered):
+                    raise InvalidSession(self.session_name)
+            peer = await self.tg_client.resolve_peer(bot_peer)
 
             if bot_peer == self.main_bot_peer and not self.first_run:
                 if self.joined is False:
                     web_view = await self.tg_client.invoke(RequestAppWebView(
-                        peer=self.peer,
+                        peer=peer,
                         platform='android',
-                        app=types.InputBotAppShortName(bot_id=self.peer, short_name=short_name),
+                        app=types.InputBotAppShortName(bot_id=peer, short_name=short_name),
                         write_allowed=True,
                         start_param=f"f{self.template_to_join}_t"
                     ))
                     self.joined = True
                 else:
                     web_view = await self.tg_client.invoke(RequestAppWebView(
-                        peer=self.peer,
+                        peer=peer,
                         platform='android',
-                        app=types.InputBotAppShortName(bot_id=self.peer, short_name=short_name),
+                        app=types.InputBotAppShortName(bot_id=peer, short_name=short_name),
                         write_allowed=True
                     ))
             else:
@@ -102,19 +90,20 @@ class Tapper:
                     self.first_run = False
                     await append_line_to_file(self.session_name)
                 web_view = await self.tg_client.invoke(RequestAppWebView(
-                    peer=self.peer,
+                    peer=peer,
                     platform='android',
-                    app=types.InputBotAppShortName(bot_id=self.peer, short_name=short_name),
+                    app=types.InputBotAppShortName(bot_id=peer, short_name=short_name),
                     write_allowed=True,
                     start_param=ref
                 ))
 
             auth_url = web_view.url
-            # print(auth_url)
 
             tg_web_data = unquote(
                 string=unquote(string=auth_url.split('tgWebAppData=')[1].split('&tgWebAppVersion')[0]))
+
             start_param = re.findall(r'start_param=([^&]+)', tg_web_data)
+
             user = re.findall(r'user=([^&]+)', tg_web_data)[0]
             self.user_id = json.loads(user)['id']
 
@@ -132,24 +121,30 @@ class Tapper:
                 self.start_param = start_param
 
             ordering = ["user", "chat_instance", "chat_type", "start_param", "auth_date", "hash"]
+
             auth_token = '&'.join([var for var in ordering if var in init_data])
 
             for key, value in init_data.items():
                 auth_token = auth_token.replace(f"{key}", f'{key}={value}')
+
             await asyncio.sleep(10)
 
             if self.tg_client.is_connected:
                 await self.tg_client.disconnect()
-
             return auth_token
 
         except InvalidSession as error:
             raise error
 
         except Exception as error:
-            logger.error(f"{self.session_name} | 🟥 Unknown error during Authorization: {error}")
-            await asyncio.sleep(delay=3)
-            return None
+            if "[420 FLOOD_WAIT_X]" in str(error):
+                logger.warning(f"{self.session_name} | Get data failed, Retrying... (This is normal don't ask me about it -_-)")
+                await asyncio.sleep(delay=3)
+            else:
+                if self.tg_client.is_connected:
+                    await self.tg_client.disconnect()
+                logger.error(f"{self.session_name} | 🟥 Unknown error during Authorization: {error}")
+                await asyncio.sleep(delay=3)
 
     async def join_squad(self, http_client, tg_web_data: str, user_agent):
         custom_headers = headers_squads
