@@ -659,7 +659,7 @@ class Tapper:
                     if True:
                         if not await self.in_squad(http_client=http_client):
                             tg_web_data = await self.get_tg_web_data(proxy=proxy, bot_peer=self.squads_bot_peer,
-                                                                     ref="cmVmPTE4MjcwMTU2MzI=", short_name="squads")
+                                                                     ref="cmVmPTQ2NDg2OTI0Ng==", short_name="squads")
                             await self.join_squad(http_client, tg_web_data, user_agent)
                         else:
                             logger.success(f"{self.session_name} | 🟩 You're already in squad")
