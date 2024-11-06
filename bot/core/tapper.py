@@ -24,6 +24,7 @@ from random import randint, uniform
 
 from .image_checker import get_cords_and_color, template_to_join, inform, boost_record, break_down
 from ..utils.firstrun import append_line_to_file
+from bot.core.agents import fetch_version
 
 
 class Tapper:
@@ -40,8 +41,26 @@ class Tapper:
         self.user_id = 0
         self.multi_thread = multithread
         self.key = key
+        self.query_anti = None
         self.inSquad = False
         self.peer = None
+
+    async def anti_detect(self, http_client: aiohttp.ClientSession, u):
+        try:
+            payload = {
+                "d": "notpx.app",
+                "n": "pageview",
+                "r": "https://web.telegram.org/",
+                "u": f"https://app.notpx.app/#tgWebAppData={u}&tgWebAppVersion=7.10&tgWebAppPlatform=android&tgWebAppThemeParams=%7B%22bg_color%22%3A%22%23212121%22%2C%22text_color%22%3A%22%23ffffff%22%2C%22hint_color%22%3A%22%23aaaaaa%22%2C%22link_color%22%3A%22%238774e1%22%2C%22button_color%22%3A%22%238774e1%22%2C%22button_text_color%22%3A%22%23ffffff%22%2C%22secondary_bg_color%22%3A%22%230f0f0f%22%2C%22header_bg_color%22%3A%22%23212121%22%2C%22accent_text_color%22%3A%22%238774e1%22%2C%22section_bg_color%22%3A%22%23212121%22%2C%22section_header_text_color%22%3A%22%23aaaaaa%22%2C%22subtitle_text_color%22%3A%22%23aaaaaa%22%2C%22destructive_text_color%22%3A%22%23e53935%22%7D"
+            }
+            response = await http_client.post("https://plausible.joincommunity.xyz/api/event", json=payload)
+            # print(response.status)
+            if response.status == 202:
+                return True
+            else:
+                return False
+        except:
+            return False
 
     async def get_tg_web_data(self, proxy: str | None, ref:str, bot_peer:str, short_name:str) -> str:
         if proxy:
@@ -101,6 +120,10 @@ class Tapper:
 
             tg_web_data = unquote(
                 string=unquote(string=auth_url.split('tgWebAppData=')[1].split('&tgWebAppVersion')[0]))
+
+            self.query_anti = auth_url.split('tgWebAppData=')[1].split('&tgWebAppVersion')[0]
+            # print(self.query_anti)
+            # await asyncio.sleep(1000)
 
             start_param = re.findall(r'start_param=([^&]+)', tg_web_data)
 
@@ -569,6 +592,8 @@ class Tapper:
         access_token_created_time = 0
         proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
         headers["User-Agent"] = user_agent
+        chrome_ver = fetch_version(headers['User-Agent'])
+        headers['Sec-Ch-Ua'] = f'"Chromium";v="{chrome_ver}", "Android WebView";v="{chrome_ver}", "Not.A/Brand";v="99"'
 
         async with aiohttp.ClientSession(headers=headers, connector=proxy_conn, trust_env=True) as http_client:
             if proxy:
@@ -609,7 +634,13 @@ class Tapper:
 
                         await break_down(self.user_id)
 
+
+                        if await self.anti_detect(http_client, self.query_anti) is False:
+                            await asyncio.sleep(5)
+                            continue
+
                         http_client.headers["Authorization"] = f"initData {tg_web_data}"
+
 
                         user_info = await self.login(http_client=http_client)
                         if not user_info:
