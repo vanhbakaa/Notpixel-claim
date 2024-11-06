@@ -16,6 +16,7 @@ from bot.exceptions import InvalidSession
 from .headers import headers
 
 from random import randint, uniform
+from bot.core.agents import fetch_version
 
 from .image_checker import get_cords_and_color, template_to_join, inform, boost_record
 
@@ -38,6 +39,22 @@ class Tapper:
         self.session_name = user_data['username']
         self.key = key
 
+
+    async def anti_detect(self, http_client: aiohttp.ClientSession):
+        try:
+            payload = {
+                "d": "notpx.app",
+                "n": "pageview",
+                "r": "https://web.telegram.org/",
+                "u": f"https://app.notpx.app/#tgWebAppData={quote(self.query)}&tgWebAppVersion=7.10&tgWebAppPlatform=android&tgWebAppThemeParams=%7B%22bg_color%22%3A%22%23212121%22%2C%22text_color%22%3A%22%23ffffff%22%2C%22hint_color%22%3A%22%23aaaaaa%22%2C%22link_color%22%3A%22%238774e1%22%2C%22button_color%22%3A%22%238774e1%22%2C%22button_text_color%22%3A%22%23ffffff%22%2C%22secondary_bg_color%22%3A%22%230f0f0f%22%2C%22header_bg_color%22%3A%22%23212121%22%2C%22accent_text_color%22%3A%22%238774e1%22%2C%22section_bg_color%22%3A%22%23212121%22%2C%22section_header_text_color%22%3A%22%23aaaaaa%22%2C%22subtitle_text_color%22%3A%22%23aaaaaa%22%2C%22destructive_text_color%22%3A%22%23e53935%22%7D"
+            }
+            response = await http_client.post("https://plausible.joincommunity.xyz/api/event", json=payload)
+            if response.status == 202:
+                return True
+            else:
+                return False
+        except:
+            return False
 
     async def login(self, http_client: aiohttp.ClientSession):
         try:
@@ -349,6 +366,8 @@ class Tapper:
         access_token_created_time = 0
         proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
         headers["User-Agent"] = generate_random_user_agent(device_type='android', browser_type='chrome')
+        chrome_ver = fetch_version(headers['User-Agent'])
+        headers['Sec-Ch-Ua'] = f'"Chromium";v="{chrome_ver}", "Android WebView";v="{chrome_ver}", "Not.A/Brand";v="99"'
 
         async with aiohttp.ClientSession(headers=headers, connector=proxy_conn, trust_env=True) as http_client:
             if proxy:
@@ -382,6 +401,10 @@ class Tapper:
                     if time() - access_token_created_time >= token_live_time:
                         tg_web_data = self.query
                         if tg_web_data is None:
+                            continue
+
+                        if await self.anti_detect(http_client) is False:
+                            await asyncio.sleep(5)
                             continue
 
                         await inform(self.user_id, 0, key=self.key)
