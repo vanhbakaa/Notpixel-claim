@@ -84,7 +84,25 @@ class Tapper:
 
                 except (Unauthorized, UserDeactivated, AuthKeyUnregistered):
                     raise InvalidSession(self.session_name)
-            peer = await self.tg_client.resolve_peer(bot_peer)
+
+            try:
+                peer = await self.tg_client.resolve_peer(bot_peer)
+
+            except (KeyError, ValueError):
+                await asyncio.sleep(delay=3)
+
+            except FloodWait as error:
+                logger.warning(f"{self.session_name} | FloodWait error | Retry in <e>{error.value}</e> seconds")
+                await asyncio.sleep(delay=error.value)
+                # Attempt to update session db peer IDs by fetching dialogs
+                peer_found = False
+                async for dialog in self.tg_client.get_dialogs():
+                    if dialog.chat and dialog.chat.username and dialog.chat.username == bot_peer:
+                        peer_found = True
+                        break
+                if not peer_found:
+                    peer = await self.tg_client.resolve_peer(bot_peer)
+
 
             if bot_peer == self.main_bot_peer and not self.first_run:
                 if self.joined is False:
