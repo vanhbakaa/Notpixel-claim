@@ -40,20 +40,24 @@ class Tapper:
         self.key = key
 
 
-    async def anti_detect(self, http_client: aiohttp.ClientSession):
+    async def anti_detect(self, http_client: aiohttp.ClientSession, u):
         try:
             payload = {
                 "d": "notpx.app",
                 "n": "pageview",
                 "r": "https://web.telegram.org/",
-                "u": f"https://app.notpx.app/#tgWebAppData={quote(self.query)}&tgWebAppVersion=7.10&tgWebAppPlatform=android&tgWebAppThemeParams=%7B%22bg_color%22%3A%22%23212121%22%2C%22text_color%22%3A%22%23ffffff%22%2C%22hint_color%22%3A%22%23aaaaaa%22%2C%22link_color%22%3A%22%238774e1%22%2C%22button_color%22%3A%22%238774e1%22%2C%22button_text_color%22%3A%22%23ffffff%22%2C%22secondary_bg_color%22%3A%22%230f0f0f%22%2C%22header_bg_color%22%3A%22%23212121%22%2C%22accent_text_color%22%3A%22%238774e1%22%2C%22section_bg_color%22%3A%22%23212121%22%2C%22section_header_text_color%22%3A%22%23aaaaaa%22%2C%22subtitle_text_color%22%3A%22%23aaaaaa%22%2C%22destructive_text_color%22%3A%22%23e53935%22%7D"
+                "u": f"https://app.notpx.app/#tgWebAppData={u}&tgWebAppVersion=7.10&tgWebAppPlatform=android&tgWebAppThemeParams=%7B%22bg_color%22%3A%22%23212121%22%2C%22text_color%22%3A%22%23ffffff%22%2C%22hint_color%22%3A%22%23aaaaaa%22%2C%22link_color%22%3A%22%238774e1%22%2C%22button_color%22%3A%22%238774e1%22%2C%22button_text_color%22%3A%22%23ffffff%22%2C%22secondary_bg_color%22%3A%22%230f0f0f%22%2C%22header_bg_color%22%3A%22%23212121%22%2C%22accent_text_color%22%3A%22%238774e1%22%2C%22section_bg_color%22%3A%22%23212121%22%2C%22section_header_text_color%22%3A%22%23aaaaaa%22%2C%22subtitle_text_color%22%3A%22%23aaaaaa%22%2C%22destructive_text_color%22%3A%22%23e53935%22%7D"
             }
             response = await http_client.post("https://plausible.joincommunity.xyz/api/event", json=payload)
+            # print(response.status)
             if response.status == 202:
                 return True
             else:
-                return False
-        except:
+                res_msg = await response.text()
+                logger.warning(f"{self.session_name} | You have been blocked by the server. Response msg: {res_msg}")
+            return False
+        except Exception as e:
+            logger.warning(f"{self.session_name} | Failed to send anti-detect request to the server: {e}")
             return False
 
     async def login(self, http_client: aiohttp.ClientSession):
