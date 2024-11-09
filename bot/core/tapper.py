@@ -652,12 +652,11 @@ class Tapper:
                             await asyncio.sleep(15)
                             continue
 
-                        await break_down(self.user_id)
-
-
                         if await self.anti_detect(http_client, self.query_anti) is False:
                             await asyncio.sleep(5)
                             continue
+
+                        await break_down(self.user_id)
 
                         http_client.headers["Authorization"] = f"initData {tg_web_data}"
 
