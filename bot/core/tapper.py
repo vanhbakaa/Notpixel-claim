@@ -59,13 +59,16 @@ class Tapper:
                 return True
             else:
                 res_msg = await response.text()
-                logger.warning(f"{self.session_name} | You have been blocked by the server. Response msg: {res_msg}") 
-                return False
-        except:
+                logger.warning(f"{self.session_name} | You have been blocked by the server. Response msg: {res_msg}")
             return False
+        except Exception as e:
+            logger.warning(f"{self.session_name} | Failed to send anti-detect request to the server: {e}")
+            return False
+
 
     async def get_tg_web_data(self, proxy: str | None, ref:str, bot_peer:str, short_name:str) -> str:
         if proxy:
+            # print(proxy)
             proxy = Proxy.from_str(proxy)
             proxy_dict = dict(
                 scheme=proxy.protocol,
@@ -93,10 +96,11 @@ class Tapper:
             except (KeyError, ValueError):
                 await asyncio.sleep(delay=3)
 
-            except FloodWait as error:
-                logger.warning(f"{self.session_name} | FloodWait error | Retry in <e>{error.value}</e> seconds")
-                await asyncio.sleep(delay=error.value)
-                # Attempt to update session db peer IDs by fetching dialogs
+            except Exception as error:
+                if "[420 FLOOD_WAIT_X]" in str(error):
+                    logger.warning(
+                        f"{self.session_name} | Get data failed, Retrying... (This is normal don't ask me about it -_-)")
+                    await asyncio.sleep(delay=3)
                 peer_found = False
                 async for dialog in self.tg_client.get_dialogs():
                     if dialog.chat and dialog.chat.username and dialog.chat.username == bot_peer:
@@ -657,6 +661,7 @@ class Tapper:
                             continue
 
                         await break_down(self.user_id)
+
 
                         http_client.headers["Authorization"] = f"initData {tg_web_data}"
 
