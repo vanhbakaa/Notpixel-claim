@@ -58,6 +58,8 @@ class Tapper:
             if response.status == 202:
                 return True
             else:
+                res_msg = await response.text()
+                logger.warning(f"{self.session_name} | You have been blocked by the server. Response msg: {res_msg}") 
                 return False
         except:
             return False
