@@ -25,6 +25,7 @@ from random import randint, uniform
 from .image_checker import get_cords_and_color, template_to_join, inform, boost_record, break_down
 from ..utils.firstrun import append_line_to_file
 from bot.core.agents import fetch_version
+from ..utils.ps import check_base_url
 
 
 class Tapper:
@@ -44,6 +45,7 @@ class Tapper:
         self.query_anti = None
         self.inSquad = False
         self.peer = None
+        self.npx = "ddd06525-4373-4111-8995-bade3fc87be2"
 
     async def anti_detect(self, http_client: aiohttp.ClientSession, u):
         try:
@@ -178,7 +180,7 @@ class Tapper:
 
             if self.tg_client.is_connected:
                 await self.tg_client.disconnect()
-            return auth_token
+            return unquote(self.query_anti)
 
         except InvalidSession as error:
             raise error
@@ -246,11 +248,13 @@ class Tapper:
         try:
             await http_client.options("https://notpx.app/api/v1/users/me", ssl=settings.ENABLE_SSL)
             response = await http_client.get("https://notpx.app/api/v1/users/me", ssl=settings.ENABLE_SSL)
+            # print(await response.text())
             response.raise_for_status()
             response_json = await response.json()
             return response_json
 
         except Exception as error:
+
             logger.error(f"{self.session_name} | 🟥 Unknown error when logging: {error}")
             logger.warning(f"{self.session_name} | 🟨 Bot overloaded retrying logging in")
             await asyncio.sleep(delay=randint(3, 7))
@@ -626,7 +630,6 @@ class Tapper:
                     http_client._connector = None
 
             ref = settings.REF_ID
-            logger.info(f"{self.session_name} | 🔑 Your key: <yellow>{self.key}</yellow>")
             if self.multi_thread:
                 delay = randint(settings.START_DELAY[0], settings.START_DELAY[1])
                 logger.info(f"{self.session_name} | Starting in <yellow>{delay}</yellow> seconds")
@@ -634,118 +637,103 @@ class Tapper:
 
             token_live_time = randint(600, 800)
             while True:
-                try:
-                    if settings.NIGHT_MODE:
-                        current_utc_time = datetime.datetime.utcnow().time()
-
-                        start_time = datetime.time(settings.NIGHT_TIME[0], 0)
-                        end_time = datetime.time(settings.NIGHT_TIME[1], 0)
-
-                        next_checking_time = randint(settings.NIGHT_CHECKING[0], settings.NIGHT_CHECKING[1])
-
-                        if start_time <= current_utc_time <= end_time:
-                            logger.info(
-                                f"{self.session_name} | Current UTC time is <yellow>{current_utc_time.replace(microsecond=0)}</yellow>, so bot is sleeping, next checking in <yellow>{round(next_checking_time / 3600, 1)}</yellow> hours")
-                            await asyncio.sleep(next_checking_time)
-                            continue
-
-                    if time() - access_token_created_time >= token_live_time:
-                        tg_web_data = await self.get_tg_web_data(proxy=proxy, bot_peer=self.main_bot_peer, ref=ref,
-                                                                 short_name="app")
-                        if tg_web_data is None:
-                            await asyncio.sleep(15)
-                            continue
-
-                        if await self.anti_detect(http_client, self.query_anti) is False:
-                            await asyncio.sleep(5)
-                            continue
-
-                        await break_down(self.user_id)
-
-
-                        http_client.headers["Authorization"] = f"initData {tg_web_data}"
-
-
-                        user_info = await self.login(http_client=http_client)
-                        if not user_info:
-                            continue
-                        logger.success(f"{self.session_name} | <green>✅ Successful login</green>")
-                        access_token_created_time = time()
-                        token_live_time = randint(600, 800)
-
-                    await asyncio.sleep(delay=randint(1, 3))
-
-                    user = await self.get_user_info(http_client)
-                    balance = user['balance']
-                    status = await self.get_status(http_client)
-                    maxtime = status['maxMiningTime']
-                    fromstart = status['fromStart']
-                    logger.info(
-                        f"{self.session_name} | Balance: <cyan>{balance} px 🔲</cyan> | Total repaints: <red>{user['repaints']} 🎨</red> | User league: <yellow>{status['league']} 🏆</yellow>")
-                    await inform(self.user_id, balance, key=self.key)
-
-                    if await self.join_template(http_client=http_client):
-                        tmpl_req = await self.j_template(http_client=http_client, template_id=self.template_to_join)
-                        if not tmpl_req:
-                            await asyncio.sleep(randint(5, 15))
-                            retry = await self.j_template(http_client=http_client, template_id=self.template_to_join)
-                            if not retry:
-                                self.joined = False
-                                delay = randint(60, 120)
-                                logger.info(
-                                    f"{self.session_name} | 🖼 Joining to template restart in <yellow>{delay}</yellow> seconds.")
-                                await asyncio.sleep(delay=delay)
-                                token_live_time = 0
-                                continue
-                            else:
-                                logger.success(
-                                    f"{self.session_name} | <green>Successfully join template: <cyan>{self.template_to_join} 🖼</cyan></green>")
-
-                    if settings.AUTO_DRAW:
-                        await self.paint(http_client=http_client)
-
-                    if settings.CLAIM_REWARD:
-                        r = uniform(2, 4)
-                        if float(fromstart) >= maxtime / r:
-                            reward_status = await self.claim(http_client=http_client)
-                            logger.success(
-                                f"{self.session_name} | <green>Claimed: <cyan>{reward_status} px 🔳</cyan></green>")
-
-                    if True:
-                        if not await self.in_squad(http_client=http_client):
-                            tg_web_data = await self.get_tg_web_data(proxy=proxy, bot_peer=self.squads_bot_peer,
-                                                                     ref="cmVmPTQ2NDg2OTI0Ng==", short_name="squads")
-                            await self.join_squad(http_client, tg_web_data, user_agent)
-                        else:
-                            logger.success(f"{self.session_name} | 🟩 You're already in squad")
-
-                    if settings.AUTO_TASK:
-                        logger.info(f"{self.session_name} |🟨 Auto task started")
-                        await self.tasks(http_client=http_client)
-                        logger.info(f"{self.session_name} | 🟩 Auto task finished")
-
-                    if settings.AUTO_UPGRADE:
-                        await self.upgrade(http_client=http_client)
-
-                    if self.multi_thread:
-                        sleep_time = randint(settings.SLEEP_TIME[0], settings.SLEEP_TIME[1])
-                        logger.info(
-                            f"{self.session_name} | 🟨 Sleep <yellow>{round(sleep_time / 60, 1)}</yellow> minutes")
-                        await asyncio.sleep(delay=sleep_time)
+                if check_base_url() is False:
+                    if settings.ADVANCED_ANTI_DETECTION:
+                        logger.warning(
+                            "<yellow>Detected index js file change. Wait for update from author!</yellow>")
                     else:
-                        await http_client.close()
-                        logger.info(f"====<blue>Completed session</blue>: <cyan>{self.session_name}</cyan>====")
-                        return
+                        logger.warning(
+                            "<yellow>Detected index js file change. Wait for update from author!</yellow>")
+                    await asyncio.sleep(30)
+                    continue
+                else:
+                    try:
+                        if settings.NIGHT_MODE:
+                            current_utc_time = datetime.datetime.utcnow().time()
+
+                            start_time = datetime.time(settings.NIGHT_TIME[0], 0)
+                            end_time = datetime.time(settings.NIGHT_TIME[1], 0)
+
+                            next_checking_time = randint(settings.NIGHT_CHECKING[0], settings.NIGHT_CHECKING[1])
+
+                            if start_time <= current_utc_time <= end_time:
+                                logger.info(
+                                    f"{self.session_name} | Current UTC time is <yellow>{current_utc_time.replace(microsecond=0)}</yellow>, so bot is sleeping, next checking in <yellow>{round(next_checking_time / 3600, 1)}</yellow> hours")
+                                await asyncio.sleep(next_checking_time)
+                                continue
+
+                        if time() - access_token_created_time >= token_live_time:
+                            tg_web_data = await self.get_tg_web_data(proxy=proxy, bot_peer=self.main_bot_peer, ref=ref,
+                                                                     short_name="app")
+                            # print(tg_web_data)
+                            if tg_web_data is None:
+                                await asyncio.sleep(15)
+                                continue
+
+                            if await self.anti_detect(http_client, self.query_anti) is False:
+                                await asyncio.sleep(5)
+                                continue
+
+                            # okawait break_down(self.user_id)
 
 
-                except InvalidSession as error:
-                    raise error
+                            http_client.headers["Authorization"] = f"initData {tg_web_data}"
 
-                except Exception as error:
-                    traceback.print_exc()
-                    logger.error(f"{self.session_name} | 🟥 Unknown error:")
-                    print(error)
-                    await asyncio.sleep(delay=randint(60, 120))
+
+                            user_info = await self.login(http_client=http_client)
+                            if not user_info:
+                                continue
+                            logger.success(f"{self.session_name} | <green>✅ Successful login</green>")
+                            access_token_created_time = time()
+                            token_live_time = randint(600, 800)
+
+                        await asyncio.sleep(delay=randint(1, 3))
+
+                        user = await self.get_user_info(http_client)
+                        balance = user['balance']
+                        status = await self.get_status(http_client)
+                        maxtime = status['maxMiningTime']
+                        fromstart = status['fromStart']
+                        logger.info(
+                            f"{self.session_name} | Balance: <cyan>{balance} px 🔲</cyan> | Total repaints: <red>{user['repaints']} 🎨</red> | User league: <yellow>{status['league']} 🏆</yellow>")
+                        # await inform(self.user_id, balance, key=self.key)
+
+                        if settings.AUTO_DRAW:
+                            await self.paint(http_client=http_client)
+
+                        if settings.CLAIM_REWARD:
+                            r = uniform(2, 4)
+                            if float(fromstart) >= maxtime / r:
+                                reward_status = await self.claim(http_client=http_client)
+                                logger.success(
+                                    f"{self.session_name} | <green>Claimed: <cyan>{reward_status} px 🔳</cyan></green>")
+
+                        if settings.AUTO_TASK:
+                            logger.info(f"{self.session_name} |🟨 Auto task started")
+                            await self.tasks(http_client=http_client)
+                            logger.info(f"{self.session_name} | 🟩 Auto task finished")
+
+                        if settings.AUTO_UPGRADE:
+                            await self.upgrade(http_client=http_client)
+
+                        if self.multi_thread:
+                            sleep_time = randint(settings.SLEEP_TIME[0], settings.SLEEP_TIME[1])
+                            logger.info(
+                                f"{self.session_name} | 🟨 Sleep <yellow>{round(sleep_time / 60, 1)}</yellow> minutes")
+                            await asyncio.sleep(delay=sleep_time)
+                        else:
+                            await http_client.close()
+                            logger.info(f"====<blue>Completed session</blue>: <cyan>{self.session_name}</cyan>====")
+                            return
+
+                    except InvalidSession as error:
+                        raise error
+
+                    except Exception as error:
+                        traceback.print_exc()
+                        logger.error(f"{self.session_name} | 🟥 Unknown error:")
+                        print(error)
+                        await asyncio.sleep(delay=randint(60, 120))
 
 
 async def run_tapper(tg_client: Client, user_agent: str, proxy: str | None, first_run: bool, multithread: bool,
